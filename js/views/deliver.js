@@ -1,7 +1,7 @@
 // Deliver section: Calendar, Clients (list + per-client page with calendar), Team chart, Client portal.
 import { esc, I, fmt, today, parse, addDays, weekStart, monthStart, head, empty, cnt, toast, isUrl } from "../util.js";
-import { S, updateDoc, member, memberName, client, clientName, postWho, sortedTeam, photoUrl } from "../data.js";
-import { PRICE, OWN, DEPARTMENTS } from "../content.js";
+import { S, addDoc, setMe, updateDoc, member, memberName, client, clientName, postWho, sortedTeam, photoUrl } from "../data.js";
+import { PRICE, OWN, DEPARTMENTS, STARTER_TEAM } from "../content.js";
 import { postPill, avatar, avatarStack, postForm, clientForm, memberForm, copyText, monthCalendar, agendaList } from "../ui.js";
 
 const monthLabel = off => parse(monthStart(off)).toLocaleDateString(undefined, { month: "long", year: "numeric" });
@@ -122,7 +122,7 @@ export function team(r) {
   return head("Team", "Everyone at M1st, their roles, and who handles which client.", `<button class="btn primary" id="addMember">${I.plus}Add a profile</button>`) + teamTabs(r) + sub;
 }
 function orgChart() {
-  if (!S.team.length) return `<section class="panel">${empty("team", "No profiles yet", "Add your own profile first, then each teammate adds theirs.", `<button class="btn primary sm" id="addMember2">${I.plus}Add my profile</button>`)}</section>`;
+  if (!S.team.length) return `<section class="panel">${empty("team", "No profiles yet", "Add the whole M1st team in one tap (12 people, led by Bob, Kim and Druwin), or add profiles one by one.", `<div class="actions" style="justify-content:center"><button class="btn primary sm" id="seedTeam">${I.team}Add the M1st team</button><button class="btn ghost sm" id="addMember2">${I.plus}Add one profile</button></div>`)}</section>`;
   const ids = new Set(S.team.map(m => m.id));
   const kids = id => sortedTeam().filter(m => (m.reportsTo || "") === id && m.id !== id);
   const roots = sortedTeam().filter(m => !m.reportsTo || !ids.has(m.reportsTo));
@@ -166,6 +166,19 @@ function assignments() {
 export function bindTeam(v, r, render) {
   v.querySelector("#addMember")?.addEventListener("click", () => memberForm());
   v.querySelector("#addMember2")?.addEventListener("click", () => memberForm());
+  v.querySelector("#seedTeam")?.addEventListener("click", async e => {
+    if (S.team.length) return;
+    e.target.disabled = true; toast("Adding the team…");
+    const ids = {};
+    for (const m of STARTER_TEAM) {
+      const { key, reports, ...data } = m;
+      data.reportsTo = reports ? (ids[reports] || "") : "";
+      const id = await addDoc("team", data);
+      if (!id) { toast("Couldn't add everyone. Check your access and try again."); return; }
+      ids[key] = id;
+    }
+    toast("Team added. Pick your name under \"Who are you?\"");
+  });
   v.querySelectorAll("[data-member]").forEach(b => b.onclick = () => memberForm(member(b.dataset.member)));
   v.querySelectorAll("[data-setlead]").forEach(s => s.onchange = async () => {
     const c = client(s.dataset.setlead), id = s.value; s.blur();

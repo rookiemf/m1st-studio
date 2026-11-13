@@ -141,3 +141,19 @@ export const OBJECTIONS = [
     "The sample you saw was made by the same people who'd work on your account every month. Every piece goes through a quality check before you see it, and you approve everything before it posts."
   ] }
 ];
+
+// Starter team for the one-tap setup on the Team page. "reports" uses the keys below.
+export const STARTER_TEAM = [
+  { key: "kim", name: "Kim Rudillo Rebato", role: "Founder · Head of Finance and Communication", dept: "Leadership" },
+  { key: "bob", name: "Bob Agda", role: "Co-founder · Graphic Head Designer", dept: "Leadership", skills: "Graphic design, Video editing, Photography, Social media", portfolio: "https://www.behance.net/bobagdaGrfx" },
+  { key: "druwin", name: "Druwin Tapon", role: "Creative Head", dept: "Leadership" },
+  { key: "marinelle", name: "Marinelle Anabaab", role: "Head Video Editor", dept: "Video", reports: "druwin" },
+  { key: "kane", name: "Kane Valles", role: "Video Editor", dept: "Video", reports: "marinelle" },
+  { key: "bitoy", name: "Eskizence \"Bitoy\" Bithoy", role: "Illustrator and Animator", dept: "Design and illustration", reports: "druwin" },
+  { key: "kian", name: "Kian Metin Cajipo", role: "Illustrator and Animator", dept: "Design and illustration", reports: "druwin" },
+  { key: "marc", name: "Marc Cada", role: "Illustrator and Animator", dept: "Design and illustration", reports: "druwin" },
+  { key: "nick", name: "Nick Algin Noromor", role: "Animator", dept: "Animation", reports: "druwin" },
+  { key: "jade", name: "Jade Titong", role: "Scriptwriter", dept: "Writing", reports: "kim" },
+  { key: "ronan", name: "Ro Nan", role: "Scriptwriter", dept: "Writing", reports: "kim" },
+  { key: "michael", name: "Michael Nethearl", role: "Photographer and Graphic Designer", dept: "Photography", reports: "bob" }
+];
