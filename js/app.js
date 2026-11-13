@@ -1,6 +1,6 @@
 // App shell: navigation, routing and rendering.
 import { esc, I, countUp, toast, initials } from "./util.js";
-import { S, start, setOnChange, followDue, updateDoc, sortedTeam, signIn, signOutNow, isTeam, myEmail, member } from "./data.js";
+import { S, start, setOnChange, followDue, updateDoc, sortedTeam, signIn, signOutNow, isTeam, isLeader, myEmail, member } from "./data.js";
 import { initDialog, openDialog, closeDialog, postForm } from "./ui.js";
 import { dashboard, bindDashboard, outreach, bindOutreach, calls, bindCalls } from "./views/grow.js";
 import { calendar, bindCalendar, clients, bindClients, team, bindTeam, portal, bindPortal } from "./views/deliver.js";
@@ -9,13 +9,19 @@ import { local, bindLocal, bookingForm } from "./views/local.js";
 import { gear, bindGear } from "./views/gear.js";
 import { marketing, bindMarketing } from "./views/marketing.js";
 import { meetings, bindMeetings } from "./views/meetings.js";
+import { tasks, bindTasks, myOpenTasks, tasksForReview } from "./views/tasks.js";
+import { chat, bindChat, chatUnread } from "./views/chat.js";
+import { templates, bindTemplates } from "./views/templates.js";
 
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "dash", grp: 1 },
-  { id: "outreach", label: "Outreach", icon: "send", grp: 1 },
+  { id: "outreach", label: "Outreach", icon: "doc", grp: 1 },
   { id: "calls", label: "Call scripts", short: "Calls", icon: "phone", grp: 1 },
   { id: "marketing", label: "Marketing", icon: "star", grp: 1 },
-  { id: "social", label: "Social", icon: "chat", grp: 1 },
+  { id: "templates", label: "Templates", icon: "grid", grp: 1 },
+  { id: "social", label: "Social", icon: "send", grp: 1 },
+  { id: "tasks", label: "Tasks", icon: "task", grp: 2 },
+  { id: "chat", label: "Team chat", short: "Chat", icon: "chat", grp: 2 },
   { id: "meetings", label: "Meetings", icon: "eye", grp: 2 },
   { id: "calendar", label: "Calendar", icon: "cal", grp: 2 },
   { id: "clients", label: "Overseas clients", short: "Clients", icon: "users", grp: 2 },
@@ -27,7 +33,8 @@ const NAV = [
 const VIEWS = {
   dashboard: [dashboard, bindDashboard], outreach: [outreach, bindOutreach], calls: [calls, bindCalls],
   marketing: [marketing, bindMarketing], meetings: [meetings, bindMeetings], social: [social, bindSocial], local: [local, bindLocal], gear: [gear, bindGear],
-  calendar: [calendar, bindCalendar], clients: [clients, bindClients], team: [team, bindTeam], portal: [portal, bindPortal]
+  calendar: [calendar, bindCalendar], clients: [clients, bindClients], team: [team, bindTeam], portal: [portal, bindPortal],
+  tasks: [tasks, bindTasks], chat: [chat, bindChat], templates: [templates, bindTemplates]
 };
 
 const route = () => (location.hash || "#dashboard").slice(1) || "dashboard";
@@ -49,8 +56,10 @@ function badge(id) {
     : id === "social" ? S.messages.filter(m => m.status === "New").length + S.posts.filter(p => p.status === "Approved").length
     : id === "marketing" ? S.posts.filter(p => p.clientId === "m1st" && p.status === "Ready for review").length
     : id === "meetings" ? S.meetings.filter(m => m.date === new Date().toISOString().slice(0, 10) && m.status !== "Cancelled" && m.status !== "Done").length
+    : id === "tasks" ? myOpenTasks().length + (isLeader() ? tasksForReview().length : 0)
+    : id === "chat" ? (routeBase() === "chat" ? 0 : chatUnread())
     : id === "gear" ? S.gear.filter(g => g.outBy).length : 0;
-  const hot = (id === "outreach" && S.leads.some(followDue)) || (id === "social" && S.messages.some(m => m.status === "New"));
+  const hot = (id === "outreach" && S.leads.some(followDue)) || (id === "social" && S.messages.some(m => m.status === "New")) || id === "chat" || (id === "tasks" && isLeader() && tasksForReview().length > 0);
   return n ? `<span class="badge${hot ? " hot" : ""}">${n}</span>` : "";
 }
 function navHTML(grp) {

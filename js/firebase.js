@@ -2,7 +2,7 @@
 // Access is controlled by Google sign-in and the security rules in firestore.rules.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, collection, query, where, orderBy, limitToLast, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDCyG5C3jNDIbZxXRUCK9bQj0MK9tneH0E",
@@ -22,4 +22,4 @@ provider.setCustomParameters({ prompt: "select_account" });
 // Accounts that are always admins, even before anyone is added on the Access page.
 export const OWNER_EMAILS = ["m1stcreatives25@gmail.com", "bobagda25@gmail.com"];
 
-export { signInWithPopup, onAuthStateChanged, signOut, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc };
+export { signInWithPopup, onAuthStateChanged, signOut, collection, query, where, orderBy, limitToLast, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDoc };

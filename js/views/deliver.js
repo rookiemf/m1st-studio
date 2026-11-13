@@ -1,6 +1,6 @@
 // Deliver section: Calendar, Clients (list + per-client page with calendar), Team chart, Client portal.
 import { esc, I, fmt, today, parse, addDays, weekStart, monthStart, head, empty, cnt, toast, isUrl } from "../util.js";
-import { S, addDoc, updateDoc, deleteDoc, member, memberName, client, clientName, postWho, sortedTeam, photoUrl, isAdmin, setAccess, myEmail } from "../data.js";
+import { S, addDoc, updateDoc, deleteDoc, member, memberName, client, clientName, postWho, sortedTeam, photoUrl, isAdmin, setAccess, myEmail, leaders, leaderNames } from "../data.js";
 import { OWNER_EMAILS } from "../firebase.js";
 import { meetingCard, bindMeetingButtons, meetingForm } from "./meetings.js";
 import { PRICE, OWN, DEPARTMENTS, STARTER_TEAM } from "../content.js";
@@ -128,27 +128,18 @@ export function team(r) {
 }
 function orgChart() {
   if (!S.team.length) return `<section class="panel">${empty("team", "No profiles yet", "Add the whole M1st team in one tap (12 people, led by Bob, Kim and Druwin), or add profiles one by one.", `<div class="actions" style="justify-content:center"><button class="btn primary sm" id="seedTeam">${I.team}Add the M1st team</button><button class="btn ghost sm" id="addMember2">${I.plus}Add one profile</button></div>`)}</section>`;
-  const ids = new Set(S.team.map(m => m.id));
-  const kids = id => sortedTeam().filter(m => (m.reportsTo || "") === id && m.id !== id);
-  const roots = sortedTeam().filter(m => !m.reportsTo || !ids.has(m.reportsTo));
-  const seen = new Set();
-  const count = id => { const k = kids(id); return k.length + k.reduce((n, m) => n + count(m.id), 0); };
-  const leads = id => S.clients.filter(c => c.leadId === id).length;
-  const branch = list => list.length ? `<ul>${list.map(m => {
-    if (seen.has(m.id)) return ""; seen.add(m.id);
-    return `<li><button class="orow${m.id === S.me ? " me" : ""}" data-member="${esc(m.id)}">${avatar(m)}<span class="otx"><span class="onm">${esc(m.name)}${m.id === S.me ? ' <span class="pill brand">You</span>' : ""}</span><span class="orl">${esc(m.role || "")}</span></span>${leads(m.id) ? `<span class="pill brand">${leads(m.id)} client${leads(m.id) === 1 ? "" : "s"}</span>` : ""}</button>${branch(kids(m.id))}</li>`;
-  }).join("")}</ul>` : "";
-  const cols = roots.map(r => {
-    seen.add(r.id);
-    const n = count(r.id);
-    return `<div class="ocol"><button class="ohead${r.id === S.me ? " me" : ""}" data-member="${esc(r.id)}">${avatar(r, "lg")}<span class="otx"><span class="odept">${esc(r.dept || "")}</span><span class="onm">${esc(r.name)}</span><span class="orl">${esc(r.role || "")}</span><span class="ometa">${n ? `${n} ${n === 1 ? "person" : "people"} on their team` : "No direct team yet"}${leads(r.id) ? ` · leads ${leads(r.id)} client${leads(r.id) === 1 ? "" : "s"}` : ""}</span></span></button>
-      <div class="otree">${branch(kids(r.id)) || `<p class="inline-note" style="margin:10px 0 0 4px">Nobody reports here yet.</p>`}</div></div>`;
-  }).join("");
-  const byDept = DEPARTMENTS.map(d => [d, S.team.filter(m => m.dept === d).length]).filter(x => x[1]);
+  const heads = leaders(), rest = sortedTeam().filter(m => m.dept !== "Leadership");
+  const cl = id => S.clients.filter(c => c.leadId === id).length;
+  const openTasks = id => S.tasks.filter(t => t.assigneeId === id && t.status !== "Done").length;
+  const depts = DEPARTMENTS.filter(d => d !== "Leadership" && rest.some(m => m.dept === d));
+  const other = rest.filter(m => !DEPARTMENTS.includes(m.dept));
+  const row = m => `<button class="orow${m.id === S.me ? " me" : ""}" data-member="${esc(m.id)}">${avatar(m)}<span class="otx"><span class="onm">${esc(m.name)}${m.id === S.me ? ' <span class="pill brand">You</span>' : ""}</span><span class="orl">${esc(m.role || "")}</span></span>${openTasks(m.id) ? `<span class="pill">${openTasks(m.id)} task${openTasks(m.id) === 1 ? "" : "s"}</span>` : ""}${cl(m.id) ? `<span class="pill brand">${cl(m.id)} client${cl(m.id) === 1 ? "" : "s"}</span>` : ""}</button>`;
+  const group = (d, list) => `<div class="odeptcol"><div class="odepthead">${esc(d)}<span>${list.length}</span></div>${list.map(row).join("")}</div>`;
   return `<section class="panel" style="margin-bottom:16px"><header><h2>Team chart</h2><span class="count">${S.team.length} people · tap anyone to open their profile</span></header>
-    <div class="orgcols">${cols}</div>
-    <div class="legend" style="flex-wrap:wrap">${byDept.map(([d, n]) => `<span>${esc(d)} <b class="num">${n}</b></span>`).join("")}</div></section>
-    <p class="inline-note">The top row is the leadership team. To move someone, edit their profile and change who they report to.</p>`;
+    <div class="orgtop">${heads.map(r => `<button class="ohead${r.id === S.me ? " me" : ""}" data-member="${esc(r.id)}">${avatar(r, "lg")}<span class="otx"><span class="odept">Leadership</span><span class="onm">${esc(r.name)}</span><span class="orl">${esc(r.role || "")}</span>${cl(r.id) ? `<span class="ometa">Leads ${cl(r.id)} client${cl(r.id) === 1 ? "" : "s"}</span>` : ""}</span></button>`).join("") || `<p class="inline-note" style="margin:0">No one is in the Leadership department yet. Edit a profile and set its department to Leadership.</p>`}</div>
+    ${rest.length ? `<div class="orgjoin"><span>Everyone below reports to ${esc(leaderNames())}</span></div>
+    <div class="orgdepts">${depts.map(d => group(d, rest.filter(m => m.dept === d))).join("")}${other.length ? group("Other", other) : ""}</div>` : ""}</section>
+    <p class="inline-note">The whole team reports to the three leaders, who assign work on the <a href="#tasks">Tasks</a> page. To move someone to another group, edit their profile and change the department.</p>`;
 }
 function profiles() {
   if (!S.team.length) return `<section class="panel">${empty("team", "No profiles yet", "", `<button class="btn primary sm" id="addMember2">${I.plus}Add my profile</button>`)}</section>`;
@@ -158,7 +149,7 @@ function profiles() {
     return `<article class="pcard"><div class="top">${avatar(m, "lg")}<div><b>${esc(m.name)}${m.id === S.me ? ' <span class="pill brand">You</span>' : ""}</b><span>${esc(m.role || "")}</span><br><span class="dept" style="font-size:11px;color:var(--maroon);font-weight:600;text-transform:uppercase;letter-spacing:.05em">${esc(m.dept || "")}</span></div></div>
       ${m.bio ? `<p style="margin:0;font-size:14px">${esc(m.bio)}</p>` : ""}
       ${m.skills ? `<div class="skills">${m.skills.split(",").map(s => s.trim()).filter(Boolean).map(s => `<span class="tag">${esc(s)}</span>`).join("")}</div>` : ""}
-      <div class="facts"><div>Reports to<b>${esc(memberName(m.reportsTo) || "–")}</b></div><div>Open work<b class="num">${open}</b></div></div>
+      <div class="facts"><div>Reports to<b>${m.dept === "Leadership" ? "Co-leads" : esc(leaderNames())}</b></div><div>Open work<b class="num">${open}</b></div></div>
       ${lead.length || on.length ? `<div class="inline-note">${lead.length ? `In charge of <b>${lead.map(c => esc(c.name)).join(", ")}</b>. ` : ""}${on.length ? `Works on ${on.map(c => esc(c.name)).join(", ")}.` : ""}</div>` : ""}
       <div class="actions" style="margin-top:auto">${m.contact ? `<span class="inline-note">${esc(m.contact)}</span>` : ""}${isUrl(m.portfolio) ? `<a class="btn ghost sm" href="${esc(m.portfolio)}" target="_blank" rel="noopener">${I.link}Portfolio</a>` : ""}<button class="btn ghost sm" data-member="${esc(m.id)}">${I.edit}Edit</button></div></article>`;
   }).join("")}</div>`;
@@ -214,7 +205,7 @@ export function bindTeam(v, r, render) {
       if (!id) { toast("Couldn't add everyone. Check your access and try again."); return; }
       ids[key] = id;
     }
-    toast("Team added. Pick your name under \"Who are you?\"");
+    toast("Team added. Add each person's sign-in email on their profile.");
   });
   v.querySelectorAll("[data-member]").forEach(b => b.onclick = () => memberForm(member(b.dataset.member)));
   v.querySelectorAll("[data-setlead]").forEach(s => s.onchange = async () => {

@@ -5,6 +5,8 @@ import { NICHES, LEAD_STATUS, RESPONDED, PRICE, OWN, DAILY_TARGET, FOLLOW_UP, fi
 import { leadPill, postPill, avatar, prepareLeadForm, logSentForm, copyText, confirmBox, clientForm, logCallForm, postForm } from "../ui.js";
 import { deleteDoc } from "../data.js";
 import { meetingCard, bindMeetingButtons } from "./meetings.js";
+import { taskCard, bindTaskButtons, myOpenTasks, tasksForReview } from "./tasks.js";
+import { isLeader } from "../data.js";
 
 // ================= DASHBOARD =================
 export function dashboard() {
@@ -51,6 +53,8 @@ export function dashboard() {
     <div class="kpi"><div class="lbl">${I.bag}Monthly revenue</div><div class="val">${cnt(mrr, "$")}</div><div class="sub">${active.length} active client${active.length === 1 ? "" : "s"}</div></div>
   </div>
   ${S.me ? `<section class="panel" style="margin-bottom:16px"><header><h2>My work</h2><span class="actions"><button class="btn ghost sm" id="addMine">${I.plus}Add my work</button></span></header><div class="body">${mine.length ? mine.map(p => `<div class="rowitem"><span class="dot${p.clientId === OWN ? " own" : ""}" aria-hidden="true"></span><div class="main"><div class="t"><a href="#" data-post="${esc(p.id)}" style="color:inherit">${esc(p.title)}</a></div><div class="m"><span>${esc(clientName(p.clientId))}</span><span>${esc(p.type)}</span><span class="${p.due < t ? "due" : ""}">${p.due < t ? "Overdue · " : "Due "}${fmt(p.due)}</span></div></div>${postPill(p.status)}</div>`).join("") : empty("check", "Nothing on your plate", "Add work you're doing so the team can see it.")}</div></section>` : `<div class="banner" style="background:var(--maroon-50);border-color:#E7C3C8;color:var(--maroon)">Your Google account isn't linked to a team profile yet. Open Team → Profiles, edit your profile and add your sign-in email, or <a href="#team" style="color:inherit"><b>add your profile</b></a>.</div>`}
+  ${(() => { const rv = isLeader() ? tasksForReview() : []; return rv.length ? `<section class="panel" style="margin-bottom:16px"><header><h2>Reports waiting for your review</h2><a class="btn ghost sm" href="#tasks">All tasks</a></header><div class="tlist">${rv.slice(0, 5).map(taskCard).join("")}</div></section>` : ""; })()}
+  ${(() => { const mine = myOpenTasks().sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")); return mine.length ? `<section class="panel" style="margin-bottom:16px"><header><h2>My tasks</h2><a class="btn ghost sm" href="#tasks">All tasks</a></header><div class="tlist">${mine.slice(0, 5).map(taskCard).join("")}</div></section>` : ""; })()}
   ${(() => { const mt = S.meetings.filter(m => m.date === t && m.status !== "Cancelled" && m.status !== "Done").sort((a, b) => (a.time || "").localeCompare(b.time || "")); return mt.length ? `<section class="panel" style="margin-bottom:16px"><header><h2>Today's meetings</h2><a class="btn ghost sm" href="#meetings">All meetings</a></header><div class="mlist">${mt.map(m => meetingCard(m)).join("")}</div></section>` : ""; })()}
   ${(() => { const sh = S.bookings.filter(b => (b.status === "Booked" || b.status === "Inquiry") && b.date >= t && b.date <= addDays(t, 14)).sort((a, b) => a.date.localeCompare(b.date)); const out = S.gear.filter(g => g.outBy);
     return sh.length || out.length ? `<div class="cols"><section class="panel"><header><h2>Local shoots, next 2 weeks</h2><a class="btn ghost sm" href="#local">All shoots</a></header><div class="body">${sh.length ? sh.map(b => `<div class="rowitem"><div class="main"><div class="t"><a href="#" data-booking="${esc(b.id)}" style="color:inherit">${esc(b.clientName)} · ${esc(b.eventType)}</a></div><div class="m"><span>${fmt(b.date)}${b.time ? " · " + esc(b.time) : ""}</span><span>${esc(b.service)}</span>${b.location ? `<span>${esc(b.location)}</span>` : ""}</div></div>${b.status === "Inquiry" ? '<span class="pill muted">Inquiry</span>' : '<span class="pill brand">Booked</span>'}</div>`).join("") : empty("cal", "No shoots coming up", "")}</div></section>
@@ -99,6 +103,7 @@ export function bindDashboard(v) {
   v.querySelector("#quickPrep")?.addEventListener("click", () => prepareLeadForm());
   v.querySelector("#addMine")?.addEventListener("click", () => postForm(null, { assigneeId: S.me }));
   bindMeetingButtons(v);
+  bindTaskButtons(v);
 }
 
 // ================= OUTREACH =================

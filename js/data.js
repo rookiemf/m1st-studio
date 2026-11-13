@@ -1,12 +1,12 @@
 // Data layer: who is signed in, what they may see, and live sync with Firestore.
 import { banner, toast, addDays, today } from "./util.js";
 import { OWN, FOLLOW_UP_DAYS } from "./content.js";
-import { auth, fs, provider, OWNER_EMAILS, signInWithPopup, onAuthStateChanged, signOut, collection, query, where, onSnapshot, addDoc as fsAdd, updateDoc as fsUpdate, deleteDoc as fsDelete, doc, setDoc, getDoc } from "./firebase.js";
+import { auth, fs, provider, OWNER_EMAILS, signInWithPopup, onAuthStateChanged, signOut, collection, query, where, orderBy, limitToLast, onSnapshot, addDoc as fsAdd, updateDoc as fsUpdate, deleteDoc as fsDelete, doc, setDoc, getDoc } from "./firebase.js";
 
-export const TEAM_COLLECTIONS = ["leads", "clients", "posts", "team", "calls", "socials", "messages", "bookings", "gear", "campaigns", "meetings", "access"];
+export const TEAM_COLLECTIONS = ["leads", "clients", "posts", "team", "calls", "socials", "messages", "bookings", "gear", "campaigns", "meetings", "access", "tasks", "templates"];
 
 export const S = {
-  leads: [], clients: [], posts: [], team: [], calls: [], socials: [], messages: [], bookings: [], gear: [], campaigns: [], meetings: [], access: [],
+  leads: [], clients: [], posts: [], team: [], calls: [], socials: [], messages: [], bookings: [], gear: [], campaigns: [], meetings: [], access: [], tasks: [], templates: [], chat: [],
   loaded: {}, user: null, role: "", clientId: "", authReady: false, denied: false,
   readOnly: false, assets: null, me: "",
   ui: {
@@ -14,7 +14,7 @@ export const S = {
     weekOffset: 0, monthOffset: 0, calView: "week", calClient: "", calPerson: "",
     clientMonth: 0, leadFilter: { niche: "", status: "", q: "" },
     portalClient: "", mkMonth: 0, reviewFilter: "review", msgFilter: "open", localMonth: 0, localFilter: "",
-    replyKey: "Inquiry reply", replyLang: "en", replyBooking: "", meetFilter: "upcoming",
+    replyKey: "Inquiry reply", replyLang: "en", replyBooking: "", meetFilter: "upcoming", taskFilter: "mine", chatChannel: "General", chatDraft: "", tplFilter: "",
     script: "discovery", scriptLead: "", scriptBig: false, scriptChecks: {}
   }
 };
@@ -81,6 +81,8 @@ function subscribe() {
   unsubs.push(() => clearTimeout(timer));
   if (isTeam()) {
     TEAM_COLLECTIONS.forEach(col => watch(col, collection(fs, col)));
+    // Chat keeps only the latest messages in memory so it stays fast and within the free plan.
+    watch("chat", query(collection(fs, "chat"), orderBy("createdAt"), limitToLast(300)));
   } else {
     // Clients only ever load what belongs to them.
     watch("clients", doc(fs, "clients", S.clientId));
@@ -136,3 +138,8 @@ export const postWho = p => memberName(p.assigneeId) || p.assignee || "";
 export const followDue = l => l.status === "Sent" && !l.followedUp && l.sentOn && addDays(l.sentOn, FOLLOW_UP_DAYS) <= today();
 export const sortedTeam = () => S.team.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 export const myEmail = email;
+// The three leaders everyone reports to (profiles in the Leadership department).
+export const leaders = () => S.team.filter(m => m.dept === "Leadership").sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+export const leaderNames = () => { const n = leaders().map(m => m.name.split(" ")[0]); return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : (n[0] || "the leaders"); };
+// Leaders are the admins: they hand out tasks and review reports.
+export const isLeader = () => isAdmin();

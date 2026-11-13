@@ -44,9 +44,27 @@ service cloud.firestore {
       );
     }
 
+    // Tasks: leaders (admins) assign and review. Members can only move a task along and send their report.
+    match /tasks/{id} {
+      allow read: if isTeam();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isTeam()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'report', 'reportLink', 'reportAt', 'updatedAt'])
+        && request.resource.data.status in ['In progress', 'For review']
+      );
+    }
+
+    // Team chat: team only. You can post as yourself and delete your own messages; admins can delete any.
+    match /chat/{id} {
+      allow read: if isTeam();
+      allow create: if isTeam() && request.resource.data.createdByEmail == email();
+      allow delete: if isAdmin() || (isTeam() && resource.data.createdByEmail == email());
+    }
+
     // Everything else is team-only.
     match /{col}/{id} {
-      allow read, write: if isTeam() && col in ['leads', 'calls', 'socials', 'messages', 'bookings', 'gear', 'campaigns'];
+      allow read, write: if isTeam() && col in ['leads', 'calls', 'socials', 'messages', 'bookings', 'gear', 'campaigns', 'templates'];
     }
   }
 }
