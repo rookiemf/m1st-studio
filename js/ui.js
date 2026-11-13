@@ -1,7 +1,7 @@
 // Reusable UI pieces: pills, avatars, dialogs, forms and the month calendar.
 import { esc, I, opts, fmt, today, parse, addDays, monthStart, initials, toast, isUrl } from "./util.js";
 import { S, addDoc, updateDoc, deleteDoc, member, memberName, clientName, postWho, followDue, sortedTeam, uploadPhoto, photoUrl } from "./data.js";
-import { NICHES, CHANNELS, POST_TYPES, POST_STATUS, PACKAGES, DEPARTMENTS, OWN, TEMPLATES, DETAIL_HINT, fillMessage, CALL_OUTCOMES, PLATFORMS } from "./content.js";
+import { NICHES, CHANNELS, POST_TYPES, POST_STATUS, PACKAGES, DEPARTMENTS, OWN, TEMPLATES, DETAIL_HINT, fillMessage, CALL_OUTCOMES, PLATFORMS, PILLARS } from "./content.js";
 
 // ---------- small pieces ----------
 export const leadPill = l => followDue(l) ? `<span class="pill warn">Follow-up due</span>` : ({
@@ -10,7 +10,7 @@ export const leadPill = l => followDue(l) ? `<span class="pill warn">Follow-up d
   "Call booked": '<span class="pill dark">Call booked</span>', Won: '<span class="pill ok">Won</span>', Lost: '<span class="pill muted">Lost</span>'
 }[l.status] || `<span class="pill">${esc(l.status)}</span>`);
 
-export const postPill = s => `<span class="pill ${({ "Idea": "muted", "In progress": "", "Ready for review": "warn", "Changes requested": "bad", "Approved": "ok", "Posted": "dark" })[s] || ""}">${esc(s)}</span>`;
+export const postPill = s => `<span class="pill ${({ "Idea": "muted", "In progress": "", "Ready for review": "warn", "Changes requested": "bad", "Needs rework": "bad", "Approved": "ok", "Disapproved": "muted", "Posted": "dark" })[s] || ""}">${esc(s)}</span>`;
 
 export function avatar(m, size = "") {
   if (!m) return `<span class="avatar ${size}" aria-hidden="true">?</span>`;
@@ -139,6 +139,7 @@ export function postForm(p, defaults = {}) {
       <label class="field" for="pf-who">Made by<select id="pf-who" name="assigneeId">${teamOptions(p.assigneeId)}</select></label></div>
     ${legacy}
     <div class="frow"><label class="field" for="pf-type">Type<select id="pf-type" name="type">${opts(POST_TYPES, p.type)}</select></label><label class="field" for="pf-due">Due<input id="pf-due" type="date" name="due" required value="${esc(p.due)}"></label><label class="field" for="pf-status">Status<select id="pf-status" name="status">${opts(POST_STATUS, p.status)}</select></label></div>
+    <div class="frow" id="pf-mk"><label class="field" for="pf-pillar">Content pillar (M1st posts)<select id="pf-pillar" name="pillar"><option value="">None</option>${PILLARS.map(x => `<option${x.name === p.pillar ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label><label class="field" for="pf-camp">Campaign<select id="pf-camp" name="campaignId"><option value="">None</option>${S.campaigns.map(c => `<option value="${esc(c.id)}"${c.id === p.campaignId ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label></div>
     <label class="field" for="pf-caption">Caption (for posting)<textarea id="pf-caption" name="caption" rows="3" placeholder="Write the caption and hashtags here">${esc(p.caption)}</textarea></label>
     <fieldset style="border:none;padding:0;margin:0"><legend class="field" style="margin-bottom:6px">Post on</legend><div class="checks">${PLATFORMS.filter(x => x !== "Messenger" && x !== "Other").map(x => `<label><input type="checkbox" name="plat" value="${esc(x)}"${(p.platforms || []).includes(x) ? " checked" : ""}>${esc(x)}</label>`).join("")}</div></fieldset>
     <label class="field" for="pf-link">Draft link for the client<input id="pf-link" name="link" type="url" value="${esc(p.link)}" placeholder="https://drive.google.com/..." autocomplete="off"></label>
@@ -146,6 +147,8 @@ export function postForm(p, defaults = {}) {
     ${p.clientNote ? `<div class="banner" style="margin:0">Client note: ${esc(p.clientNote)}</div>` : ""}
   </form>`, `${isNew ? "" : `<button class="btn ghost" type="button" id="postDel" style="margin-right:auto">${I.trash}Delete</button>`}<button class="btn ghost" type="button" id="pfCancel">Cancel</button><button class="btn primary" type="submit" form="postForm">${isNew ? "Add work" : "Save changes"}</button>`, () => {
     document.getElementById("pfCancel").onclick = closeDialog;
+    const cl = document.getElementById("pf-client"), mk = document.getElementById("pf-mk");
+    const sync = () => mk.classList.toggle("hidden", cl.value !== OWN); cl.addEventListener("change", sync); sync();
     document.getElementById("postForm").onsubmit = async e => {
       e.preventDefault(); const d = formData(e.target); delete d.plat;
       d.platforms = [...e.target.querySelectorAll('input[name="plat"]:checked')].map(x => x.value); closeDialog();
@@ -225,7 +228,7 @@ export function monthCalendar(posts, offset, { onlyView = false } = {}) {
     ${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(d => `<div class="wd" role="columnheader">${d}</div>`).join("")}
     ${cells.slice(0, rows).map(d => {
       const P = posts.filter(p => p.due === d); const show = P.slice(0, 3);
-      return `<div class="cell${parse(d).getMonth() !== month ? " out" : ""}${d === t ? " today" : ""}" role="gridcell"><span class="dn">${parse(d).getDate()}</span><div class="chips">${show.map(p => p._attr ? `<button class="chipbtn ${p._cls || ""}" ${p._attr} title="${esc(p.title)}">${esc(p.title)}</button>` : `<button class="chipbtn${p.clientId === OWN ? " own" : ""}${cls(p)}" ${onlyView ? `data-viewpost="${esc(p.id)}"` : `data-post="${esc(p.id)}"`} title="${esc(p.title)} · ${esc(p.status)}${postWho(p) ? " · " + esc(postWho(p)) : ""}">${esc(p.title)}</button>`).join("")}</div>${P.length > 3 ? `<span class="more">+${P.length - 3} more</span>` : ""}</div>`;
+      return `<div class="cell${parse(d).getMonth() !== month ? " out" : ""}${d === t ? " today" : ""}" role="gridcell"><span class="dn">${parse(d).getDate()}</span><div class="chips">${show.map(p => p._attr ? `<button class="chipbtn ${p._cls || ""}" ${p._attr}${p._style ? ` style="${esc(p._style)}"` : ""} title="${esc(p.title)}">${esc(p.title)}</button>` : `<button class="chipbtn${p.clientId === OWN ? " own" : ""}${cls(p)}" ${onlyView ? `data-viewpost="${esc(p.id)}"` : `data-post="${esc(p.id)}"`} title="${esc(p.title)} · ${esc(p.status)}${postWho(p) ? " · " + esc(postWho(p)) : ""}">${esc(p.title)}</button>`).join("")}</div>${P.length > 3 ? `<span class="more">+${P.length - 3} more</span>` : ""}</div>`;
     }).join("")}
   </div>`;
 }

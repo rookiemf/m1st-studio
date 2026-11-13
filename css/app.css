@@ -353,3 +353,15 @@ body.portal-only .whoami{display:none}
 .orow .onm{font-size:14px;font-weight:600;color:var(--ink)}
 .orow .orl{font-size:12.5px;color:var(--grey-600)}
 .avatar{color:#fff !important}
+/* marketing review */
+.reviewgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.rcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.mediabox{background:#141213;aspect-ratio:4/5;max-height:420px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.mediabox img,.mediabox video{width:100%;height:100%;object-fit:contain;background:#141213}
+.mediabox.empty-media{background:#F3F1F1;color:var(--grey-400);flex-direction:column;gap:8px;font-size:13px;aspect-ratio:16/9}
+.mediabox.empty-media svg{width:26px;height:26px}
+.versions{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px 0}
+.rbody{padding:14px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.hist{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.hrow{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+label.btn{cursor:pointer}

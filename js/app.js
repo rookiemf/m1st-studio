@@ -7,22 +7,24 @@ import { calendar, bindCalendar, clients, bindClients, team, bindTeam, portal, b
 import { social, bindSocial } from "./views/social.js";
 import { local, bindLocal, bookingForm } from "./views/local.js";
 import { gear, bindGear } from "./views/gear.js";
+import { marketing, bindMarketing } from "./views/marketing.js";
 
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "dash", grp: 1 },
   { id: "outreach", label: "Outreach", icon: "send", grp: 1 },
   { id: "calls", label: "Call scripts", short: "Calls", icon: "phone", grp: 1 },
+  { id: "marketing", label: "Marketing", icon: "star", grp: 1 },
   { id: "social", label: "Social", icon: "chat", grp: 1 },
   { id: "calendar", label: "Calendar", icon: "cal", grp: 2 },
   { id: "clients", label: "Overseas clients", short: "Clients", icon: "users", grp: 2 },
-  { id: "local", label: "Local shoots", short: "Shoots", icon: "star", grp: 2 },
+  { id: "local", label: "Local shoots", short: "Shoots", icon: "cam", grp: 2 },
   { id: "gear", label: "Equipment", short: "Gear", icon: "bag", grp: 2 },
   { id: "team", label: "Team", icon: "team", grp: 2 },
   { id: "portal", label: "Client portal", short: "Portal", icon: "eye", grp: 2 }
 ];
 const VIEWS = {
   dashboard: [dashboard, bindDashboard], outreach: [outreach, bindOutreach], calls: [calls, bindCalls],
-  social: [social, bindSocial], local: [local, bindLocal], gear: [gear, bindGear],
+  marketing: [marketing, bindMarketing], social: [social, bindSocial], local: [local, bindLocal], gear: [gear, bindGear],
   calendar: [calendar, bindCalendar], clients: [clients, bindClients], team: [team, bindTeam], portal: [portal, bindPortal]
 };
 
@@ -34,6 +36,7 @@ function routeBase() {
   if (r.startsWith("outreach")) return "outreach";
   if (r.startsWith("team")) return "team";
   if (r.startsWith("social")) return "social";
+  if (r.startsWith("marketing")) return "marketing";
   if (r.startsWith("local")) return "local";
   return VIEWS[r] ? r : "dashboard";
 }
@@ -42,6 +45,7 @@ function badge(id) {
   const n = id === "outreach" ? S.leads.filter(l => l.status === "Ready").length + S.leads.filter(followDue).length
     : id === "portal" ? S.posts.filter(p => p.status === "Ready for review").length
     : id === "social" ? S.messages.filter(m => m.status === "New").length + S.posts.filter(p => p.status === "Approved").length
+    : id === "marketing" ? S.posts.filter(p => p.clientId === "m1st" && p.status === "Ready for review").length
     : id === "gear" ? S.gear.filter(g => g.outBy).length : 0;
   const hot = (id === "outreach" && S.leads.some(followDue)) || (id === "social" && S.messages.some(m => m.status === "New"));
   return n ? `<span class="badge${hot ? " hot" : ""}">${n}</span>` : "";
@@ -109,6 +113,7 @@ window.addEventListener("hashchange", () => {
   S.ui.animate = true; pending = false;
   if (!route().startsWith("client-") && !route().startsWith("portal")) S.ui.clientMonth = 0;
   if (!route().startsWith("local")) S.ui.localMonth = 0;
+  if (!route().startsWith("marketing")) S.ui.mkMonth = 0;
   document.activeElement?.blur?.(); render(); try { window.scrollTo(0, 0); } catch (e) {}
 });
 ["whoami", "whoami2"].forEach(id => document.getElementById(id)?.addEventListener("change", e => { setMe(e.target.value); e.target.blur(); toast(e.target.value ? "Welcome back!" : "Profile cleared"); }));

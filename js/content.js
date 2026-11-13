@@ -6,7 +6,7 @@ export const CHANNELS = ["LinkedIn", "Instagram", "Facebook", "Email", "Upwork",
 export const LEAD_STATUS = ["Ready", "Sent", "Replied", "Sample sent", "Call booked", "Won", "Lost"];
 export const RESPONDED = ["Replied", "Sample sent", "Call booked", "Won"];
 export const POST_TYPES = ["Post", "Short video", "Reel", "Ad creative", "Animated ad", "Photo shoot", "Other"];
-export const POST_STATUS = ["Idea", "In progress", "Ready for review", "Changes requested", "Approved", "Posted"];
+export const POST_STATUS = ["Idea", "In progress", "Ready for review", "Changes requested", "Needs rework", "Approved", "Disapproved", "Posted"];
 export const PACKAGES = ["Starter ($500)", "Growth ($950)", "Premium ($1,600)", "Local bundle"];
 export const PRICE = { "Starter ($500)": 500, "Growth ($950)": 950, "Premium ($1,600)": 1600 };
 export const DEPARTMENTS = ["Leadership", "Creative", "Design and illustration", "Video", "Animation", "Writing", "Photography", "Operations"];
@@ -201,3 +201,25 @@ export const LOCAL_REPLIES = {
     fil: "Hi {name}! Ready na po ang inyong {service} mula sa {event}! Narito ang link: [paste link]\n\nAng natitirang balance ay {balance}. Salamat sa pagtitiwala sa M1st Creatives, at sana makapag-iwan kayo ng review sa aming page!"
   }
 };
+
+// ---------- marketing (M1st's own content) ----------
+export const PILLARS = [
+  { name: "Behind the scenes", color: "#7A1F2B", what: "The team sketching, editing, shooting. Proves real people make the work." },
+  { name: "Glow-up", color: "#2B2B2B", what: "A tired post next to our redesign. Shows exactly what we sell." },
+  { name: "Made by humans", color: "#9A5B00", what: "How one piece was made, from idea to final, step by step." },
+  { name: "Team spotlight", color: "#1F7A4D", what: "Introduce one teammate: their role, skills and favorite project." },
+  { name: "Local shoots", color: "#5E5E5E", what: "Highlights from weddings, debuts, events and product shoots (with permission)." },
+  { name: "Tips", color: "#3D5A80", what: "Short, useful social media tips for small business owners." },
+  { name: "Offer", color: "#B42318", what: "Packages, free sample offer, booking reminders. Keep to 1 in 5 posts." }
+];
+export const CAMPAIGN_GOALS = ["Get overseas leads", "Get local bookings", "Grow followers", "Build trust and portfolio", "Launch an offer"];
+export const CAMPAIGN_AUDIENCE = ["Overseas small businesses", "Local clients (Eastern Samar)", "Both"];
+export const CAMPAIGN_STATUS = ["Planned", "Running", "Done", "Paused"];
+export const WEEKLY_RHYTHM = [
+  ["Mon", "Plan the week's posts and assign who makes them"],
+  ["Tue", "Reel or glow-up post"],
+  ["Wed", "LinkedIn post from Bob"],
+  ["Thu", "Behind-the-scenes or team spotlight"],
+  ["Sat", "Local shoot highlight or tip"],
+  ["Fri", "Review results and approve next week's content"]
+];

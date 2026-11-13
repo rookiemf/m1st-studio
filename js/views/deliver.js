@@ -204,7 +204,7 @@ export function portal(r) {
   if (!c) return (locked ? "" : head("Client portal", "What a client sees: their calendar, their team, and posts to approve.")) + picker + `<section class="panel">${locked && !S.loaded.clients ? empty("clock", "Loading", "") : locked ? empty("x", "This portal link isn't valid", "Ask M1st Creatives for a new link.") : S.clients.length ? empty("eye", "Choose a client", "Pick a client above to preview their portal.") : empty("users", "No clients yet", "Add a client first.", `<a class="btn ghost sm" href="#clients">Go to Clients</a>`)}</section>`;
   const P = S.posts.filter(p => p.clientId === c.id);
   const review = P.filter(p => p.status === "Ready for review");
-  const working = P.filter(p => ["Idea", "In progress", "Changes requested"].includes(p.status)).sort((a, b) => (a.due || "").localeCompare(b.due || ""));
+  const working = P.filter(p => ["Idea", "In progress", "Changes requested", "Needs rework"].includes(p.status)).sort((a, b) => (a.due || "").localeCompare(b.due || ""));
   const done = P.filter(p => ["Approved", "Posted"].includes(p.status)).sort((a, b) => (b.due || "").localeCompare(a.due || ""));
   const lead = member(c.leadId), teamM = (c.teamIds || []).map(member).filter(Boolean);
   const off = S.ui.clientMonth;

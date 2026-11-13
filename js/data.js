@@ -2,10 +2,10 @@
 // Runs in "local mode" (data kept only until the page closes) when no database is available.
 import { banner, toast } from "./util.js";
 
-export const COLLECTIONS = ["leads", "clients", "posts", "team", "calls", "socials", "messages", "bookings", "gear"];
+export const COLLECTIONS = ["leads", "clients", "posts", "team", "calls", "socials", "messages", "bookings", "gear", "campaigns"];
 
 export const S = {
-  leads: [], clients: [], posts: [], team: [], calls: [], socials: [], messages: [], bookings: [], gear: [],
+  leads: [], clients: [], posts: [], team: [], calls: [], socials: [], messages: [], bookings: [], gear: [], campaigns: [],
   loaded: Object.fromEntries(COLLECTIONS.map(c => [c, false])),
   db: null, assets: null, local: false, readOnly: false,
   me: readLocal("m1st.me") || "",
@@ -13,7 +13,7 @@ export const S = {
     animate: true, dataAnimated: false,
     weekOffset: 0, monthOffset: 0, calView: "week", calClient: "", calPerson: "",
     clientMonth: 0, leadFilter: { niche: "", status: "", q: "" },
-    portalClient: "", msgFilter: "open", localMonth: 0, localFilter: "", replyKey: "Inquiry reply", replyLang: "en", replyBooking: "", script: "discovery", scriptLead: "", scriptBig: false, scriptChecks: {}
+    portalClient: "", mkMonth: 0, reviewFilter: "review", msgFilter: "open", localMonth: 0, localFilter: "", replyKey: "Inquiry reply", replyLang: "en", replyBooking: "", script: "discovery", scriptLead: "", scriptBig: false, scriptChecks: {}
   }
 };
 
@@ -53,6 +53,13 @@ export async function uploadPhoto(file) {
   if (!/^image\//.test(file.type)) { toast("Please choose an image file."); return null; }
   if (file.size > 8 * 1024 * 1024) { toast("Please choose a photo under 8 MB."); return null; }
   try { const r = await S.assets.upload(file); return r.id; } catch (e) { toast("Couldn't upload the photo. Try again."); return null; }
+}
+export async function uploadMedia(file) {
+  if (!S.assets) { toast("Uploading works when the app is opened on claude.ai by an Editor. Paste a link instead."); return null; }
+  if (!/^(image|video)\//.test(file.type)) { toast("Please choose an image or a video."); return null; }
+  if (file.size > 20 * 1024 * 1024) { toast("Files must be under 20 MB. Upload big videos to Google Drive and paste the link."); return null; }
+  try { const r = await S.assets.upload(file); return { id: r.id, kind: file.type.startsWith("video") ? "video" : "image", name: file.name }; }
+  catch (e) { toast("Couldn't upload that file. Try again."); return null; }
 }
 export const photoUrl = id => id ? "/_blob/" + encodeURIComponent(id) : "";
 
