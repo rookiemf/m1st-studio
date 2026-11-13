@@ -1,7 +1,7 @@
 // Reusable UI pieces: pills, avatars, dialogs, forms and the month calendar.
 import { esc, I, opts, fmt, today, parse, addDays, monthStart, initials, toast, isUrl } from "./util.js";
 import { S, addDoc, updateDoc, deleteDoc, member, memberName, clientName, postWho, followDue, sortedTeam, uploadPhoto, photoUrl } from "./data.js";
-import { NICHES, CHANNELS, POST_TYPES, POST_STATUS, PACKAGES, DEPARTMENTS, OWN, TEMPLATES, DETAIL_HINT, fillMessage, CALL_OUTCOMES, PLATFORMS, PILLARS } from "./content.js";
+import { NICHES, CHANNELS, POST_TYPES, POST_STATUS, PACKAGES, DEPARTMENTS, OWN, TEMPLATES, DETAIL_HINT, fillMessage, CALL_OUTCOMES, PLATFORMS, MAIN_PLATFORMS, PILLARS } from "./content.js";
 
 // ---------- small pieces ----------
 export const leadPill = l => followDue(l) ? `<span class="pill warn">Follow-up due</span>` : ({
@@ -131,7 +131,7 @@ export function clientForm(c, prefill) {
 
 export function postForm(p, defaults = {}) {
   const isNew = !p;
-  p = p || { clientId: OWN, type: "Post", status: "Idea", due: today(), title: "", assigneeId: S.me || "", link: "", notes: "", ...defaults };
+  p = p || { clientId: OWN, type: "Post", status: "Idea", due: today(), title: "", assigneeId: S.me || "", link: "", notes: "", platforms: [...MAIN_PLATFORMS], ...defaults };
   const legacy = !p.assigneeId && p.assignee ? `<p class="inline-note" style="margin:0">Previously assigned to: ${esc(p.assignee)}</p>` : "";
   openDialog(isNew ? "Add work" : "Edit work", `<form class="form db" id="postForm">
     <label class="field" for="pf-title">Title<input id="pf-title" name="title" required value="${esc(p.title)}" autocomplete="off" placeholder="e.g. Fall menu reel"></label>
@@ -141,7 +141,7 @@ export function postForm(p, defaults = {}) {
     <div class="frow"><label class="field" for="pf-type">Type<select id="pf-type" name="type">${opts(POST_TYPES, p.type)}</select></label><label class="field" for="pf-due">Due<input id="pf-due" type="date" name="due" required value="${esc(p.due)}"></label><label class="field" for="pf-status">Status<select id="pf-status" name="status">${opts(POST_STATUS, p.status)}</select></label></div>
     <div class="frow" id="pf-mk"><label class="field" for="pf-pillar">Content pillar (M1st posts)<select id="pf-pillar" name="pillar"><option value="">None</option>${PILLARS.map(x => `<option${x.name === p.pillar ? " selected" : ""}>${esc(x.name)}</option>`).join("")}</select></label><label class="field" for="pf-camp">Campaign<select id="pf-camp" name="campaignId"><option value="">None</option>${S.campaigns.map(c => `<option value="${esc(c.id)}"${c.id === p.campaignId ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label></div>
     <label class="field" for="pf-caption">Caption (for posting)<textarea id="pf-caption" name="caption" rows="3" placeholder="Write the caption and hashtags here">${esc(p.caption)}</textarea></label>
-    <fieldset style="border:none;padding:0;margin:0"><legend class="field" style="margin-bottom:6px">Post on</legend><div class="checks">${PLATFORMS.filter(x => x !== "Messenger" && x !== "Other").map(x => `<label><input type="checkbox" name="plat" value="${esc(x)}"${(p.platforms || []).includes(x) ? " checked" : ""}>${esc(x)}</label>`).join("")}</div></fieldset>
+    <fieldset style="border:none;padding:0;margin:0"><legend class="field" style="margin-bottom:6px">Post on</legend><div class="checks">${MAIN_PLATFORMS.map(x => `<label><input type="checkbox" name="plat" value="${esc(x)}"${(p.platforms || []).includes(x) ? " checked" : ""}>${esc(x)}</label>`).join("")}</div></fieldset>
     <label class="field" for="pf-link">Draft link for the client<input id="pf-link" name="link" type="url" value="${esc(p.link)}" placeholder="https://drive.google.com/..." autocomplete="off"></label>
     <label class="field" for="pf-notes">Notes for the team<textarea id="pf-notes" name="notes" rows="2">${esc(p.notes)}</textarea></label>
     ${p.clientNote ? `<div class="banner" style="margin:0">Client note: ${esc(p.clientNote)}</div>` : ""}

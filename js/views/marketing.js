@@ -2,7 +2,7 @@
 // where visuals and videos are approved, sent back for rework, or disapproved.
 import { esc, I, fmt, fmtLong, today, addDays, monthStart, parse, head, empty, cnt, toast, opts, ago, isUrl } from "../util.js";
 import { S, addDoc, updateDoc, deleteDoc, member, memberName, postWho, uploadMedia, photoUrl } from "../data.js";
-import { OWN, PILLARS, CAMPAIGN_GOALS, CAMPAIGN_AUDIENCE, CAMPAIGN_STATUS, WEEKLY_RHYTHM, PLATFORMS, peso } from "../content.js";
+import { OWN, PILLARS, CAMPAIGN_GOALS, CAMPAIGN_AUDIENCE, CAMPAIGN_STATUS, WEEKLY_RHYTHM, MAIN_PLATFORMS, PLATFORM_ROLE, peso } from "../content.js";
 import { avatar, postPill, postForm, openDialog, closeDialog, confirmBox, teamOptions, formData, monthCalendar } from "../ui.js";
 
 const own = () => S.posts.filter(p => p.clientId === OWN);
@@ -55,6 +55,7 @@ function planTab() {
         ${mix.map(x => `<div class="rowitem" style="padding:8px 0"><span class="dot" style="background:${x.color}" aria-hidden="true"></span><div class="main"><div class="t" style="font-size:14px">${esc(x.name)}</div><div class="m" style="white-space:normal"><span>${esc(x.what)}</span></div></div><span class="num">${x.n}</span></div>`).join("")}
         ${offerShare > 25 ? `<div class="banner" style="margin:8px 0 0">Offers are ${offerShare}% of this month's posts. Aim for about 1 in 5 so the page doesn't feel like ads.</div>` : ""}
       </div></section>
+      <section class="panel"><header><h2>Where we post</h2><span class="count">This month</span></header><div class="body">${PLATFORM_ROLE.map(x => `<div class="rowitem" style="align-items:flex-start;padding:10px 0"><span class="tag" style="min-width:76px;text-align:center">${esc(x.name)}</span><div class="main"><div class="t" style="white-space:normal;font-size:14px">For ${esc(x.who)}</div><div style="font-size:13px;color:var(--grey-600);margin-top:2px">${esc(x.use)}</div><div class="m" style="margin-top:4px"><span>Best: ${esc(x.best)}</span></div></div><span class="num" title="Posts planned this month">${month.filter(p => (p.platforms || []).includes(x.name)).length}</span></div>`).join("")}</div></section>
       <section class="panel"><header><h2>Weekly rhythm</h2></header><div class="body">${WEEKLY_RHYTHM.map(([d, w]) => `<div class="rowitem" style="padding:8px 0"><span class="tag" style="min-width:42px;text-align:center">${d}</span><div class="main"><div style="font-size:14px">${esc(w)}</div></div></div>`).join("")}</div></section>
     </div>
   </div>`;
@@ -116,13 +117,13 @@ function reviewTab() {
 
 // ---------- dialogs ----------
 function campForm(c) {
-  const isNew = !c; const p = c || { goal: CAMPAIGN_GOALS[0], audience: CAMPAIGN_AUDIENCE[0], status: "Planned", start: today(), ownerId: S.me, platforms: [] };
+  const isNew = !c; const p = c || { goal: CAMPAIGN_GOALS[0], audience: CAMPAIGN_AUDIENCE[0], status: "Planned", start: today(), ownerId: S.me, platforms: [...MAIN_PLATFORMS] };
   openDialog(isNew ? "New campaign" : "Edit campaign", `<form class="form db" id="cpForm">
     <label class="field" for="cp-name">Campaign name<input id="cp-name" name="name" required autocomplete="off" value="${esc(p.name)}" placeholder="e.g. Free sample month"></label>
     <div class="frow"><label class="field" for="cp-goal">Goal<select id="cp-goal" name="goal">${opts(CAMPAIGN_GOALS, p.goal)}</select></label><label class="field" for="cp-aud">Audience<select id="cp-aud" name="audience">${opts(CAMPAIGN_AUDIENCE, p.audience)}</select></label></div>
     <label class="field" for="cp-msg">Main message (one sentence)<input id="cp-msg" name="message" autocomplete="off" value="${esc(p.message)}" placeholder="e.g. Get one custom post free, made by real designers"></label>
     <div class="frow"><label class="field" for="cp-start">Start<input id="cp-start" type="date" name="start" value="${esc(p.start)}"></label><label class="field" for="cp-end">End<input id="cp-end" type="date" name="end" value="${esc(p.end)}"></label><label class="field" for="cp-budget">Ad budget (₱, 0 = free)<input id="cp-budget" type="number" min="0" step="100" name="budget" value="${esc(p.budget || 0)}"></label></div>
-    <fieldset style="border:none;padding:0;margin:0"><legend class="field" style="margin-bottom:6px">Where</legend><div class="checks">${PLATFORMS.filter(x => x !== "Messenger" && x !== "Other").map(x => `<label><input type="checkbox" name="plat" value="${esc(x)}"${(p.platforms || []).includes(x) ? " checked" : ""}>${esc(x)}</label>`).join("")}</div></fieldset>
+    <fieldset style="border:none;padding:0;margin:0"><legend class="field" style="margin-bottom:6px">Where</legend><div class="checks">${MAIN_PLATFORMS.map(x => `<label><input type="checkbox" name="plat" value="${esc(x)}"${(p.platforms || []).includes(x) ? " checked" : ""}>${esc(x)}</label>`).join("")}</div></fieldset>
     <div class="frow"><label class="field" for="cp-own">In charge<select id="cp-own" name="ownerId">${teamOptions(p.ownerId, "Not set")}</select></label><label class="field" for="cp-status">Status<select id="cp-status" name="status">${opts(CAMPAIGN_STATUS, p.status)}</select></label></div>
     <label class="field" for="cp-notes">How we'll measure it<input id="cp-notes" name="measure" autocomplete="off" value="${esc(p.measure)}" placeholder="e.g. 10 sample requests, 3 new clients"></label>
   </form>`, `${isNew ? "" : `<button class="btn ghost" type="button" id="cpDel" style="margin-right:auto">${I.trash}Delete</button>`}<button class="btn ghost" type="button" id="cpCancel">Cancel</button><button class="btn primary" type="submit" form="cpForm">${isNew ? "Create" : "Save"}</button>`, () => {
@@ -168,7 +169,7 @@ async function addVersion(p, m) {
 export function bindMarketing(v, r, render) {
   const on = (sel, fn) => v.querySelector(sel)?.addEventListener("click", fn);
   on("#newCamp", () => campForm()); on("#newCamp2", () => campForm());
-  const newContent = () => postForm(null, { clientId: OWN, status: r === "marketing-review" ? "In progress" : "Idea", platforms: ["Facebook", "Instagram"] });
+  const newContent = () => postForm(null, { clientId: OWN, status: r === "marketing-review" ? "In progress" : "Idea", platforms: [...MAIN_PLATFORMS] });
   on("#newContent", newContent); on("#newContent2", newContent);
   on("#newIdea", () => postForm(null, { clientId: OWN, status: "Idea" }));
   v.querySelectorAll("[data-camp]").forEach(b => b.onclick = () => campForm(S.campaigns.find(c => c.id === b.dataset.camp)));

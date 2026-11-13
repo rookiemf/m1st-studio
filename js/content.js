@@ -159,15 +159,20 @@ export const STARTER_TEAM = [
 ];
 
 // ---------- social ----------
-export const PLATFORMS = ["Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "Messenger", "Other"];
+// Main targets: Facebook, Instagram and LinkedIn. Messenger and Other are only for logging messages.
+export const MAIN_PLATFORMS = ["Facebook", "Instagram", "LinkedIn"];
+export const PLATFORMS = ["Facebook", "Instagram", "LinkedIn", "Messenger", "Other"];
+export const PLATFORM_ROLE = [
+  { name: "LinkedIn", who: "Overseas business owners", use: "Bob posts as himself 2–3 times a week: lessons, before-and-afters, the studio story. Also where most overseas outreach happens.", best: "Text posts with one image, carousels, short videos" },
+  { name: "Facebook", who: "Local clients in Eastern Samar, plus some overseas", use: "The M1st page: local shoot highlights, offers, booking reminders, and where most local inquiries arrive through Messenger.", best: "Photo albums, reels, event highlights" },
+  { name: "Instagram", who: "Both: small brands abroad and locals", use: "The portfolio: polished visuals, reels, behind the scenes and glow-ups. Brands check it before they reply.", best: "Reels, carousels, stories" }
+];
 // Free tools the team opens to post and reply. No logins or passwords are stored in this app.
 export const SOCIAL_TOOLS = [
-  { name: "Meta Business Suite", what: "Post and schedule to Facebook and Instagram, and reply to both inboxes", post: "https://business.facebook.com/latest/home", inbox: "https://business.facebook.com/latest/inbox/all", free: true },
-  { name: "Instagram", what: "Post reels and stories from the app or web", post: "https://www.instagram.com/", inbox: "https://www.instagram.com/direct/inbox/", free: true },
-  { name: "TikTok Studio", what: "Upload and schedule TikTok videos", post: "https://www.tiktok.com/tiktokstudio/upload", inbox: "https://www.tiktok.com/messages", free: true },
-  { name: "YouTube Studio", what: "Upload and schedule videos and Shorts", post: "https://studio.youtube.com/", inbox: "https://studio.youtube.com/", free: true },
-  { name: "LinkedIn", what: "Post as Bob or the company page; reply to messages", post: "https://www.linkedin.com/feed/", inbox: "https://www.linkedin.com/messaging/", free: true },
-  { name: "Metricool (free plan)", what: "Plan one brand's posts across networks in one calendar", post: "https://app.metricool.com/", inbox: "", free: true }
+  { name: "Meta Business Suite", what: "Post and schedule to Facebook and Instagram together, and reply to both inboxes and Messenger", post: "https://business.facebook.com/latest/home", inbox: "https://business.facebook.com/latest/inbox/all", for: ["Facebook", "Instagram"] },
+  { name: "LinkedIn", what: "Post as Bob or as the company page, and reply to messages", post: "https://www.linkedin.com/feed/", inbox: "https://www.linkedin.com/messaging/", for: ["LinkedIn"] },
+  { name: "Instagram", what: "Stories and quick reels from the phone app", post: "https://www.instagram.com/", inbox: "https://www.instagram.com/direct/inbox/", for: ["Instagram"] },
+  { name: "Metricool (free plan)", what: "One calendar for Facebook and Instagram (LinkedIn needs a paid plan)", post: "https://app.metricool.com/", inbox: "", for: ["Facebook", "Instagram"] }
 ];
 export const MSG_TOPICS = ["Pricing question", "Booking a shoot", "Overseas client lead", "Collaboration", "Support or complaint", "Other"];
 export const MSG_STATUS = ["New", "Replied", "Closed"];

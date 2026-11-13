@@ -2,7 +2,7 @@
 // Nothing here connects to the social networks; buttons open each platform's own site.
 import { esc, I, fmt, today, head, empty, cnt, toast, opts, ago, isUrl } from "../util.js";
 import { S, addDoc, updateDoc, deleteDoc, member, memberName, clientName, postWho } from "../data.js";
-import { PLATFORMS, SOCIAL_TOOLS, MSG_TOPICS, MSG_STATUS, NICHES, OWN } from "../content.js";
+import { PLATFORMS, MAIN_PLATFORMS, SOCIAL_TOOLS, MSG_TOPICS, MSG_STATUS, NICHES, OWN } from "../content.js";
 import { avatar, openDialog, closeDialog, confirmBox, copyText, teamOptions, formData, postPill } from "../ui.js";
 import { bookingForm } from "./local.js";
 
@@ -11,7 +11,7 @@ const tabs = r => {
   const fresh = S.messages.filter(m => m.status === "New").length;
   return `<nav class="subtabs" aria-label="Social views"><a href="#social"${r === "social" ? ' aria-current="page"' : ""}>Ready to publish${ready ? ` <span class="badge">${ready}</span>` : ""}</a><a href="#social-inbox"${r === "social-inbox" ? ' aria-current="page"' : ""}>Messages${fresh ? ` <span class="badge">${fresh}</span>` : ""}</a><a href="#social-accounts"${r === "social-accounts" ? ' aria-current="page"' : ""}>Accounts and tools</a></nav>`;
 };
-const toolFor = plat => ({ Facebook: SOCIAL_TOOLS[0], Instagram: SOCIAL_TOOLS[0], TikTok: SOCIAL_TOOLS[2], YouTube: SOCIAL_TOOLS[3], LinkedIn: SOCIAL_TOOLS[4] })[plat];
+const toolFor = plat => SOCIAL_TOOLS.find(t => t.for.includes(plat));
 
 export function social(r) {
   const body = r === "social-inbox" ? inbox() : r === "social-accounts" ? accounts() : publish();
@@ -23,9 +23,9 @@ function publish() {
   const t = today();
   const ready = S.posts.filter(p => p.status === "Approved").sort((a, b) => (a.due || "").localeCompare(b.due || ""));
   const recent = S.posts.filter(p => p.status === "Posted" && p.postedAt).sort((a, b) => b.postedAt.localeCompare(a.postedAt)).slice(0, 5);
-  return `<div class="banner" style="background:#F3F1F1;border-color:var(--line);color:var(--grey-900)">Approved work shows up here. Copy the caption, open the platform, post it, then tap <b>Mark as posted</b>.</div>
+  return `<div class="banner" style="background:#F3F1F1;border-color:var(--line);color:var(--grey-900)">Approved work shows up here. Copy the caption, open Meta Business Suite (Facebook and Instagram together) or LinkedIn, post it, then tap <b>Mark as posted</b>.</div>
   ${ready.length ? `<div class="queue">${ready.map(p => {
-    const plats = (p.platforms || []).length ? p.platforms : ["Facebook", "Instagram"];
+    const plats = (p.platforms || []).length ? p.platforms : MAIN_PLATFORMS;
     return `<article class="qcard">
       <div class="qi"><div style="display:flex;justify-content:space-between;gap:8px"><div><div style="font-weight:600;font-size:16px">${esc(p.title)}</div><div class="inline-note">${esc(clientName(p.clientId))} · ${esc(p.type)}</div></div>${postPill(p.status)}</div>
         <div class="inline-note ${p.due < t ? "due" : ""}">${p.due < t ? "Was due" : "Post on"} ${fmt(p.due)}${postWho(p) ? ` · made by ${esc(postWho(p))}` : ""}</div>
@@ -33,7 +33,7 @@ function publish() {
         ${isUrl(p.link) ? `<a class="btn ghost sm" href="${esc(p.link)}" target="_blank" rel="noopener" style="align-self:flex-start">${I.link}Get the file</a>` : `<span class="inline-note">Add a draft link to this work so the file is easy to find.</span>`}</div>
       <div class="qm"><div class="msg" id="cap-${esc(p.id)}">${esc(p.caption || "No caption yet. Edit this work in the Calendar to add one.")}</div>
         <div class="actions">${p.caption ? `<button class="btn ghost sm" data-copycap="${esc(p.id)}">${I.copy}Copy caption</button>` : `<button class="btn ghost sm" data-post="${esc(p.id)}">${I.edit}Add caption</button>`}
-          ${[...new Set(plats.map(toolFor).filter(Boolean))].map(tl => `<a class="btn ghost sm" href="${esc(tl.post)}" target="_blank" rel="noopener">Open ${esc(tl.name.replace(" Studio", ""))} ↗</a>`).join("")}
+          ${[...new Set(plats.map(toolFor).filter(Boolean))].map(tl => `<a class="btn ghost sm" href="${esc(tl.post)}" target="_blank" rel="noopener">Open ${esc(tl.name)} ↗</a>`).join("")}
           <button class="btn primary sm" data-posted="${esc(p.id)}">${I.check}Mark as posted</button></div></div>
     </article>`; }).join("")}</div>`
   : `<section class="panel">${empty("send", "Nothing waiting to be posted", "When a client approves work (or you approve M1st's own posts), it lands here ready to publish.", `<a class="btn ghost sm" href="#calendar">Open the calendar</a>`)}</section>`}
@@ -75,7 +75,8 @@ function inbox() {
 function accounts() {
   return `<section class="panel" style="margin-bottom:16px"><header><h2>M1st's accounts</h2><span class="count">${S.socials.length}</span></header>
     ${S.socials.length ? `<div class="tablebox"><table class="resp"><thead><tr><th>Platform</th><th>Handle</th><th>Managed by</th><th class="right"><span class="hidden">Actions</span></th></tr></thead><tbody>${S.socials.slice().sort((a, b) => a.platform.localeCompare(b.platform)).map(a => `<tr><td class="c-main"><div class="t">${esc(a.platform)}</div>${a.notes ? `<div class="s">${esc(a.notes)}</div>` : ""}</td><td>${esc(a.handle)}</td><td>${a.ownerId ? `<span style="display:inline-flex;gap:6px;align-items:center">${avatar(member(a.ownerId), "sm")}${esc(memberName(a.ownerId))}</span>` : "–"}</td><td class="right" style="white-space:nowrap">${isUrl(a.url) ? `<a class="btn ghost sm" href="${esc(a.url)}" target="_blank" rel="noopener">${I.link}Open</a> ` : ""}<button class="btn ghost sm icon" data-editacct="${esc(a.id)}" aria-label="Edit">${I.edit}</button></td></tr>`).join("")}</tbody></table></div>`
-    : `<div class="body">${empty("link", "No accounts listed yet", "List M1st's pages so the team knows where to post and who manages each one.", `<button class="btn primary sm" id="seedAcct">${I.plus}Add M1st's Facebook page</button>`)}</div>`}</section>
+    : `<div class="body">${empty("link", "No accounts listed yet", "List M1st's pages so the team knows where to post and who manages each one.")}</div>`}
+    ${MAIN_PLATFORMS.filter(pl => !S.socials.some(a => a.platform === pl)).length ? `<div class="toolbar" style="border-top:1px solid var(--line);border-bottom:none"><span class="inline-note">Not listed yet:</span>${MAIN_PLATFORMS.filter(pl => !S.socials.some(a => a.platform === pl)).map(pl => `<button class="btn ghost sm" data-quickacct="${pl}">${I.plus}${pl}</button>`).join("")}</div>` : ""}</section>
     <section class="panel"><header><h2>Free tools to post and reply</h2></header><div class="body">${SOCIAL_TOOLS.map(t => `<div class="rowitem"><div class="main"><div class="t">${esc(t.name)}</div><div class="m"><span>${esc(t.what)}</span></div></div><a class="btn ghost sm" href="${esc(t.post)}" target="_blank" rel="noopener">Open ↗</a></div>`).join("")}</div></section>
     <p class="inline-note">Never save passwords in this app. Keep logins in each person's own password manager.</p>`;
 }
@@ -107,7 +108,7 @@ function acctForm(a, prefill = {}) {
 export function bindSocial(v, r, render) {
   v.querySelector("#logMsg")?.addEventListener("click", msgForm);
   v.querySelector("#addAcct")?.addEventListener("click", () => acctForm());
-  v.querySelector("#seedAcct")?.addEventListener("click", () => acctForm(null, { platform: "Facebook", handle: "M1st Creatives", url: "https://www.facebook.com/profile.php?id=61566435001545" }));
+  v.querySelectorAll("[data-quickacct]").forEach(b => b.onclick = () => { const pl = b.dataset.quickacct; acctForm(null, pl === "Facebook" ? { platform: pl, handle: "M1st Creatives", url: "https://www.facebook.com/profile.php?id=61566435001545", notes: "Main page for local clients" } : pl === "LinkedIn" ? { platform: pl, handle: "Bob Agda", url: "https://www.linkedin.com/in/bob-agda04", notes: "Bob's profile, used for overseas outreach" } : { platform: pl, handle: "", notes: "Portfolio" }); });
   v.querySelectorAll("[data-editacct]").forEach(b => b.onclick = () => acctForm(S.socials.find(a => a.id === b.dataset.editacct)));
   v.querySelectorAll("[data-copycap]").forEach(b => b.onclick = () => copyText(S.posts.find(p => p.id === b.dataset.copycap)?.caption || "", "Caption copied"));
   v.querySelectorAll("[data-posted]").forEach(b => b.onclick = async () => { await updateDoc("posts", b.dataset.posted, { status: "Posted", postedAt: new Date().toISOString(), postedBy: S.me || "" }); toast("Marked as posted"); });
