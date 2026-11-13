@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M1st Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" aria-label="Main">
+    <div class="brand"><img src="assets/logo-white.png" alt=""><div><b>M1st Studio</b><span>Team workspace</span></div></div>
+    <div><div class="navlabel">Grow</div><nav class="nav" id="nav1"></nav></div>
+    <div><div class="navlabel">Deliver</div><nav class="nav" id="nav2"></nav></div>
+    <div class="foot">
+      <label class="whoami" for="whoami"><span class="hidden">Your profile</span><select id="whoami"><option value="">Who are you?</option></select></label>
+      <span>M1st Creatives · Borongan City</span>
+    </div>
+  </aside>
+  <div class="work">
+    <div class="topbar"><img src="assets/logo-white.png" alt=""><b>M1st Studio</b><label class="whoami" for="whoami2" style="margin-left:auto;max-width:160px"><span class="hidden">Your profile</span><select id="whoami2"><option value="">Who are you?</option></select></label></div>
+    <main>
+      <div id="banner" class="banner hidden" role="status"></div>
+      <div id="view"></div>
+    </main>
+  </div>
+</div>
+<nav class="mobilenav" id="mnav" aria-label="Sections"></nav>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="dlg"><div id="dlgbody"></div></dialog>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
