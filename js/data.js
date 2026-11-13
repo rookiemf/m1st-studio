@@ -1,112 +1,133 @@
-// Data layer: shared state, live sync with the artifact database, and writes.
-// Runs in "local mode" (data kept only until the page closes) when no database is available.
-import { banner, toast } from "./util.js";
+// Data layer: who is signed in, what they may see, and live sync with Firestore.
+import { banner, toast, addDays, today } from "./util.js";
+import { OWN, FOLLOW_UP_DAYS } from "./content.js";
+import { auth, fs, provider, OWNER_EMAILS, signInWithPopup, onAuthStateChanged, signOut, collection, query, where, onSnapshot, addDoc as fsAdd, updateDoc as fsUpdate, deleteDoc as fsDelete, doc, setDoc, getDoc } from "./firebase.js";
 
-export const COLLECTIONS = ["leads", "clients", "posts", "team", "calls", "socials", "messages", "bookings", "gear", "campaigns"];
+export const TEAM_COLLECTIONS = ["leads", "clients", "posts", "team", "calls", "socials", "messages", "bookings", "gear", "campaigns", "meetings", "access"];
 
 export const S = {
-  leads: [], clients: [], posts: [], team: [], calls: [], socials: [], messages: [], bookings: [], gear: [], campaigns: [],
-  loaded: Object.fromEntries(COLLECTIONS.map(c => [c, false])),
-  db: null, assets: null, local: false, readOnly: false,
-  me: readLocal("m1st.me") || "",
+  leads: [], clients: [], posts: [], team: [], calls: [], socials: [], messages: [], bookings: [], gear: [], campaigns: [], meetings: [], access: [],
+  loaded: {}, user: null, role: "", clientId: "", authReady: false, denied: false,
+  readOnly: false, assets: null, me: "",
   ui: {
     animate: true, dataAnimated: false,
     weekOffset: 0, monthOffset: 0, calView: "week", calClient: "", calPerson: "",
     clientMonth: 0, leadFilter: { niche: "", status: "", q: "" },
-    portalClient: "", mkMonth: 0, reviewFilter: "review", msgFilter: "open", localMonth: 0, localFilter: "", replyKey: "Inquiry reply", replyLang: "en", replyBooking: "", script: "discovery", scriptLead: "", scriptBig: false, scriptChecks: {}
+    portalClient: "", mkMonth: 0, reviewFilter: "review", msgFilter: "open", localMonth: 0, localFilter: "",
+    replyKey: "Inquiry reply", replyLang: "en", replyBooking: "", meetFilter: "upcoming",
+    script: "discovery", scriptLead: "", scriptBig: false, scriptChecks: {}
   }
 };
 
 let onChange = () => {};
 export const setOnChange = fn => { onChange = fn; };
+const email = () => (S.user?.email || "").toLowerCase();
+export const isTeam = () => S.role === "admin" || S.role === "team";
+export const isAdmin = () => S.role === "admin";
 
-function readLocal(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-export function setMe(id) { S.me = id; try { localStorage.setItem("m1st.me", id); } catch (e) {} onChange(); }
-
-let seq = 0;
-export async function addDoc(col, data) {
-  if (S.readOnly) { toast("You have view-only access."); return null; }
-  data.createdAt = new Date().toISOString();
-  if (S.me) data.createdBy = S.me;
-  if (S.local) { const id = "local" + (++seq); S[col].push({ id, ...data }); onChange(); return id; }
-  try { const ref = await S.db.collection(col).add(data); return ref.id; } catch (e) { writeError(e); return null; }
-}
-export async function updateDoc(col, id, patch) {
-  if (S.readOnly) { toast("You have view-only access."); return; }
-  if (S.local) { const x = S[col].find(r => r.id === id); if (x) Object.assign(x, patch); onChange(); return; }
-  try { await S.db.doc(col + "/" + id).update(patch); } catch (e) { writeError(e); }
-}
-export async function deleteDoc(col, id) {
-  if (S.readOnly) { toast("You have view-only access."); return; }
-  if (S.local) { S[col] = S[col].filter(r => r.id !== id); onChange(); return; }
-  try { await S.db.doc(col + "/" + id).delete(); } catch (e) { writeError(e); }
-}
-function writeError(e) {
-  const code = e && e.code;
-  if (code === "invalid_argument") { S.readOnly = true; banner("Your access is view-only, so changes can't be saved. Ask Bob to invite you as an Editor."); onChange(); }
-  else if (code === "quota_exceeded") toast("Storage is full. Delete old items, then try again.");
-  else toast("Couldn't save just now. Please try again.");
-}
-
-export async function uploadPhoto(file) {
-  if (!S.assets) { toast("Photo upload isn't available here."); return null; }
-  if (!/^image\//.test(file.type)) { toast("Please choose an image file."); return null; }
-  if (file.size > 8 * 1024 * 1024) { toast("Please choose a photo under 8 MB."); return null; }
-  try { const r = await S.assets.upload(file); return r.id; } catch (e) { toast("Couldn't upload the photo. Try again."); return null; }
-}
-export async function uploadMedia(file) {
-  if (!S.assets) { toast("Uploading works when the app is opened on claude.ai by an Editor. Paste a link instead."); return null; }
-  if (!/^(image|video)\//.test(file.type)) { toast("Please choose an image or a video."); return null; }
-  if (file.size > 20 * 1024 * 1024) { toast("Files must be under 20 MB. Upload big videos to Google Drive and paste the link."); return null; }
-  try { const r = await S.assets.upload(file); return { id: r.id, kind: file.type.startsWith("video") ? "video" : "image", name: file.name }; }
-  catch (e) { toast("Couldn't upload that file. Try again."); return null; }
-}
-export const photoUrl = id => id ? "/_blob/" + encodeURIComponent(id) : "";
-
-export async function connect() {
-  const timer = setTimeout(() => {
-    if (!Object.values(S.loaded).every(Boolean)) banner("Still connecting. Your data may take a moment to appear.");
-  }, 10000);
-  let db = null;
-  try { db = await window.claude?.use?.("db"); } catch (e) { db = null; }
-  if (!db) {
-    clearTimeout(timer);
-    S.local = true; COLLECTIONS.forEach(c => { S.loaded[c] = true; });
-    banner("Saving isn't available here, so changes last only until you close this page. Open the app on claude.ai while signed in to save for the whole team.");
-    onChange(); return;
+// ---------- sign in ----------
+export async function signIn() {
+  try { await signInWithPopup(auth, provider); }
+  catch (e) {
+    if (e?.code === "auth/popup-closed-by-user" || e?.code === "auth/cancelled-popup-request") return;
+    if (e?.code === "auth/popup-blocked") toast("Your browser blocked the sign-in window. Allow pop-ups for this site and try again.");
+    else if (e?.code === "auth/unauthorized-domain") toast("This web address isn't allowed to sign in yet. Ask Bob to add it in Firebase.");
+    else toast("Couldn't sign in. Please try again.");
   }
-  S.db = db;
-  try { S.assets = await window.claude.use("assets"); } catch (e) { S.assets = null; }
-  try {
-    const user = await window.claude.use("user");
-    if (user) {
-      const can = await user.can?.("data.write");
-      if (can === false) { S.readOnly = true; banner("You have view-only access, so you can look but not make changes."); }
+}
+export async function signOutNow() { await signOut(auth); location.hash = ""; location.reload(); }
+
+let unsubs = [];
+function stopAll() { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; }
+
+export function start() {
+  onAuthStateChanged(auth, async user => {
+    stopAll();
+    S.user = user; S.role = ""; S.clientId = ""; S.denied = false; S.me = "";
+    if (!user) { S.authReady = true; onChange(); return; }
+    // Work out the role: owners are always admins; everyone else needs an access entry.
+    if (OWNER_EMAILS.includes(email())) S.role = "admin";
+    else {
+      try {
+        const snap = await getDoc(doc(fs, "access", email()));
+        if (snap.exists()) { const a = snap.data(); S.role = a.role || ""; S.clientId = a.clientId || ""; }
+      } catch (e) { /* no access */ }
     }
-  } catch (e) {}
-  COLLECTIONS.forEach(col => {
-    db.collection(col).onSnapshot(snap => {
-      S[col] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      if (!snap.metadata.fromCache) {
-        S.loaded[col] = true;
-        if (Object.values(S.loaded).every(Boolean)) {
-          clearTimeout(timer);
-          if (!S.readOnly) banner("");
-          if (!S.ui.dataAnimated) { S.ui.dataAnimated = true; S.ui.animate = true; }
-        }
-      }
-      onChange();
-    }, () => {
-      S.loaded[col] = true; clearTimeout(timer);
-      banner("Lost the connection to saved data. Refresh the page to reconnect."); onChange();
-    });
+    if (!S.role || (S.role === "client" && !S.clientId)) { S.denied = true; S.authReady = true; onChange(); return; }
+    S.authReady = true;
+    subscribe();
+    onChange();
   });
 }
 
-// ---------- lookups ----------
-import { OWN, FOLLOW_UP_DAYS } from "./content.js";
-import { addDays, today } from "./util.js";
+function watch(col, q) {
+  S.loaded[col] = false;
+  const u = onSnapshot(q, snap => {
+    S[col] = snap.docs ? snap.docs.map(d => ({ id: d.id, ...d.data() })) : (snap.exists() ? [{ id: snap.id, ...snap.data() }] : []);
+    S.loaded[col] = true;
+    if (col === "team") S.me = (S.team.find(m => (m.email || "").toLowerCase() === email()) || {}).id || "";
+    if (Object.values(S.loaded).every(Boolean) && !S.ui.dataAnimated) { S.ui.dataAnimated = true; S.ui.animate = true; banner(""); }
+    onChange();
+  }, err => {
+    S.loaded[col] = true;
+    if (err?.code === "permission-denied") banner("Some data couldn't load because of your access level. Ask an admin if something is missing.");
+    else banner("Lost the connection. Check your internet and refresh the page.");
+    onChange();
+  });
+  unsubs.push(u);
+}
+function subscribe() {
+  const timer = setTimeout(() => { if (!Object.values(S.loaded).every(Boolean)) banner("Still connecting. Your data may take a moment to appear."); }, 10000);
+  unsubs.push(() => clearTimeout(timer));
+  if (isTeam()) {
+    TEAM_COLLECTIONS.forEach(col => watch(col, collection(fs, col)));
+  } else {
+    // Clients only ever load what belongs to them.
+    watch("clients", doc(fs, "clients", S.clientId));
+    watch("posts", query(collection(fs, "posts"), where("clientId", "==", S.clientId)));
+    watch("meetings", query(collection(fs, "meetings"), where("clientId", "==", S.clientId)));
+    watch("team", collection(fs, "team"));
+  }
+}
 
+// ---------- writes ----------
+const clean = o => JSON.parse(JSON.stringify(o)); // Firestore rejects undefined values
+function writeError(e) {
+  if (e?.code === "permission-denied") toast("You don't have permission to change that.");
+  else if (e?.code === "resource-exhausted") toast("The free daily limit was reached. Try again tomorrow.");
+  else toast("Couldn't save just now. Check your internet and try again.");
+}
+export async function addDoc(col, data) {
+  data.createdAt = new Date().toISOString();
+  if (S.me) data.createdBy = S.me;
+  data.createdByEmail = email();
+  try { const ref = await fsAdd(collection(fs, col), clean(data)); return ref.id; } catch (e) { writeError(e); return null; }
+}
+export async function updateDoc(col, id, patch) {
+  patch.updatedAt = new Date().toISOString();
+  try { await fsUpdate(doc(fs, col, id), clean(patch)); } catch (e) { writeError(e); }
+}
+export async function deleteDoc(col, id) {
+  try { await fsDelete(doc(fs, col, id)); } catch (e) { writeError(e); }
+}
+export async function setAccess(addr, data) {
+  try { await setDoc(doc(fs, "access", addr.toLowerCase().trim()), clean({ ...data, email: addr.toLowerCase().trim(), updatedAt: new Date().toISOString(), updatedBy: email() })); return true; }
+  catch (e) { writeError(e); return false; }
+}
+
+// ---------- files ----------
+// Firebase file storage needs a paid plan, so photos and drafts are shared as links (Google Drive, etc.).
+export async function uploadPhoto() { toast("Paste a link to the photo instead (for example from Google Drive)."); return null; }
+export async function uploadMedia() { toast("Paste a Google Drive link instead."); return null; }
+export const photoUrl = v => !v ? "" : /^https?:\/\//i.test(v) ? driveImage(v) : "";
+// Turn a Google Drive share link into a direct image link so it shows in the app.
+export function driveImage(url) {
+  const m = String(url).match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1000` : url;
+}
+
+// ---------- lookups ----------
+export const setMe = () => {}; // identity now comes from the Google account
 export const member = id => S.team.find(m => m.id === id);
 export const memberName = id => member(id)?.name || "";
 export const client = id => S.clients.find(c => c.id === id);
@@ -114,3 +135,4 @@ export const clientName = id => id === OWN ? "M1st (our page)" : (client(id)?.na
 export const postWho = p => memberName(p.assigneeId) || p.assignee || "";
 export const followDue = l => l.status === "Sent" && !l.followedUp && l.sentOn && addDays(l.sentOn, FOLLOW_UP_DAYS) <= today();
 export const sortedTeam = () => S.team.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+export const myEmail = email;

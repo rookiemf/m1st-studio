@@ -1,7 +1,7 @@
 // Marketing: M1st's own advertising. Campaign plan, content calendar, and an internal review board
 // where visuals and videos are approved, sent back for rework, or disapproved.
 import { esc, I, fmt, fmtLong, today, addDays, monthStart, parse, head, empty, cnt, toast, opts, ago, isUrl } from "../util.js";
-import { S, addDoc, updateDoc, deleteDoc, member, memberName, postWho, uploadMedia, photoUrl } from "../data.js";
+import { S, addDoc, updateDoc, deleteDoc, member, memberName, postWho } from "../data.js";
 import { OWN, PILLARS, CAMPAIGN_GOALS, CAMPAIGN_AUDIENCE, CAMPAIGN_STATUS, WEEKLY_RHYTHM, MAIN_PLATFORMS, PLATFORM_ROLE, peso } from "../content.js";
 import { avatar, postPill, postForm, openDialog, closeDialog, confirmBox, teamOptions, formData, monthCalendar } from "../ui.js";
 
@@ -83,11 +83,15 @@ function calendarTab() {
 
 // ---------- review ----------
 const latest = p => (p.media || []).slice(-1)[0];
-function mediaView(m, big) {
+function mediaView(m) {
   if (!m) return `<div class="mediabox empty-media">${I.eye}<span>No visual or video yet</span></div>`;
-  if (m.url && !m.id) return `<div class="mediabox"><a class="btn ghost" href="${esc(m.url)}" target="_blank" rel="noopener">${I.link}Open ${esc(m.kind === "video" ? "video" : "file")} link</a></div>`;
-  const src = esc(photoUrl(m.id));
-  return `<div class="mediabox">${m.kind === "video" ? `<video src="${src}" controls preload="metadata"${big ? "" : " muted"}></video>` : `<img src="${src}" alt="Draft visual for review">`}</div>`;
+  const url = m.url || "";
+  const id = (url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?id=)([\w-]+)/) || [])[1];
+  if (id && m.kind === "video") return `<div class="mediabox"><iframe src="https://drive.google.com/file/d/${esc(id)}/preview" title="Draft video" allow="autoplay" loading="lazy"></iframe></div>`;
+  if (id) return `<div class="mediabox"><img src="https://drive.google.com/thumbnail?id=${esc(id)}&sz=w1200" alt="Draft visual for review" referrerpolicy="no-referrer"></div>`;
+  if (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url)) return `<div class="mediabox"><img src="${esc(url)}" alt="Draft visual for review" referrerpolicy="no-referrer"></div>`;
+  if (/\.(mp4|webm|mov)(\?|$)/i.test(url)) return `<div class="mediabox"><video src="${esc(url)}" controls preload="metadata"></video></div>`;
+  return `<div class="mediabox"><a class="btn ghost" href="${esc(url)}" target="_blank" rel="noopener">${I.link}Open the ${m.kind === "video" ? "video" : "file"}</a></div>`;
 }
 function reviewTab() {
   const f = S.ui.reviewFilter;
@@ -99,7 +103,7 @@ function reviewTab() {
       const m = latest(p), hist = (p.reviews || []).slice().reverse();
       const canDecide = p.status === "Ready for review";
       return `<article class="rcard">
-        ${mediaView(m, true)}
+        ${mediaView(m)}
         ${(p.media || []).length > 1 ? `<div class="versions">${p.media.map((v, i) => `<span class="tag">v${i + 1}${i === p.media.length - 1 ? " (latest)" : ""} · ${esc(memberName(v.by) || "team")}</span>`).join("")}</div>` : ""}
         <div class="rbody">
           <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><div style="font-weight:600;font-size:16px">${esc(p.title)}</div><div class="inline-note">${esc(p.type)} · post on ${fmt(p.due)}${postWho(p) ? ` · made by ${esc(postWho(p))}` : ""}</div></div>${postPill(p.status)}</div>
@@ -108,11 +112,11 @@ function reviewTab() {
           ${hist.length ? `<div class="hist">${hist.slice(0, 3).map(h => `<div class="hrow">${avatar(member(h.by), "sm")}<div><b>${esc(memberName(h.by) || "Someone")}</b> <span class="pill ${h.decision === "Approved" ? "ok" : h.decision === "Disapproved" ? "muted" : "bad"}">${esc(h.decision)}</span> <span class="inline-note">${ago(h.at)}</span>${h.note ? `<div style="font-size:13.5px;margin-top:2px">${esc(h.note)}</div>` : ""}</div></div>`).join("")}</div>` : ""}
           <div class="actions" style="margin-top:auto">
             ${canDecide ? `<button class="btn primary sm" data-decide="Approved" data-id="${esc(p.id)}">${I.check}Approve</button><button class="btn ghost sm" data-decide="Needs rework" data-id="${esc(p.id)}">${I.edit}Rework</button><button class="btn ghost sm" data-decide="Disapproved" data-id="${esc(p.id)}">${I.x}Disapprove</button>` : ""}
-            ${p.status === "Needs rework" || p.status === "In progress" || !m ? `<label class="btn ${p.status === "Needs rework" ? "primary" : "ghost"} sm" for="up-${esc(p.id)}">${I.plus}${m ? "Upload new version" : "Upload visual or video"}<input id="up-${esc(p.id)}" type="file" accept="image/*,video/*" data-upload="${esc(p.id)}" class="hidden"></label><button class="btn ghost sm" data-addlink="${esc(p.id)}">${I.link}Link</button>` : ""}
+            ${p.status === "Needs rework" || p.status === "In progress" || !m ? `<button class="btn ${p.status === "Needs rework" ? "primary" : "ghost"} sm" data-addlink="${esc(p.id)}">${I.plus}${m ? "Add new version" : "Add visual or video"}</button>` : ""}
             ${p.status === "In progress" && m ? `<button class="btn primary sm" data-submit="${esc(p.id)}">Send for review</button>` : ""}
             <button class="btn ghost sm icon" data-post="${esc(p.id)}" aria-label="Edit details">${I.doc}</button></div>
         </div></article>`; }).join("")}</div>`
-    : `<section class="panel">${empty("eye", f === "review" ? "Nothing to review" : "Nothing here", f === "review" ? "When someone uploads a visual or video and sends it for review, it shows up here for Bob, Kim or Druwin to approve." : "", `<button class="btn primary sm" id="newContent2">${I.plus}Add content</button>`)}</section>`}`;
+    : `<section class="panel">${empty("eye", f === "review" ? "Nothing to review" : "Nothing here", f === "review" ? "When someone adds a visual or video (as a Google Drive link) and sends it for review, it shows up here for Bob, Kim or Druwin to approve." : "", `<button class="btn primary sm" id="newContent2">${I.plus}Add content</button>`)}</section>`}`;
 }
 
 // ---------- dialogs ----------
@@ -152,7 +156,7 @@ function decideForm(p, decision) {
   });
 }
 function linkForm(p) {
-  openDialog("Add a link", `<form class="form db" id="lkForm"><label class="field" for="lk-url">Google Drive or other link<input id="lk-url" name="url" type="url" required></label><label class="field" for="lk-kind">It's a<select id="lk-kind" name="kind"><option value="image">Visual</option><option value="video">Video</option></select></label></form>`,
+  openDialog("Add a visual or video", `<form class="form db" id="lkForm"><p class="inline-note" style="margin:0">Upload the file to the M1st Google Drive, then Share → Anyone with the link can view → Copy link.</p><label class="field" for="lk-url">Google Drive link<input id="lk-url" name="url" type="url" required placeholder="https://drive.google.com/file/d/..."></label><label class="field" for="lk-kind">It's a<select id="lk-kind" name="kind"><option value="image">Visual</option><option value="video">Video</option></select></label></form>`,
     `<button class="btn ghost" type="button" id="lkCancel">Cancel</button><button class="btn primary" type="submit" form="lkForm">Add</button>`, () => {
       document.getElementById("lkCancel").onclick = closeDialog;
       document.getElementById("lkForm").onsubmit = async e => { e.preventDefault(); const d = formData(e.target); closeDialog(); await addVersion(p, { url: d.url, kind: d.kind, name: "Link" }); };
@@ -177,10 +181,6 @@ export function bindMarketing(v, r, render) {
   v.querySelectorAll("[data-start]").forEach(b => b.onclick = async () => { await updateDoc("posts", b.dataset.start, { status: "In progress", assigneeId: S.posts.find(p => p.id === b.dataset.start)?.assigneeId || S.me || "" }); toast("Started. Upload the draft in Review when it's ready."); });
   v.querySelectorAll("[data-rf]").forEach(b => b.onclick = () => { S.ui.reviewFilter = b.dataset.rf; render(); });
   v.querySelectorAll("[data-decide]").forEach(b => b.onclick = () => { const p = S.posts.find(x => x.id === b.dataset.id); if (p) decideForm(p, b.dataset.decide); });
-  v.querySelectorAll("[data-upload]").forEach(inp => inp.onchange = async () => {
-    const p = S.posts.find(x => x.id === inp.dataset.upload); const file = inp.files[0]; if (!p || !file) return;
-    toast("Uploading…"); const m = await uploadMedia(file); inp.value = ""; if (m) await addVersion(p, m);
-  });
   v.querySelectorAll("[data-addlink]").forEach(b => b.onclick = () => { const p = S.posts.find(x => x.id === b.dataset.addlink); if (p) linkForm(p); });
   v.querySelectorAll("[data-submit]").forEach(b => b.onclick = async () => { await updateDoc("posts", b.dataset.submit, { status: "Ready for review" }); toast("Sent for review"); });
 }

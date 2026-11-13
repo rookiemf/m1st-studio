@@ -9,18 +9,19 @@
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-<div class="shell">
+<div id="gate" class="gate hidden" role="main"></div>
+<div class="shell" id="shell">
   <aside class="side" aria-label="Main">
     <div class="brand"><img src="assets/logo-white.png" alt=""><div><b>M1st Studio</b><span>Team workspace</span></div></div>
     <div><div class="navlabel">Grow</div><nav class="nav" id="nav1"></nav></div>
     <div><div class="navlabel">Deliver</div><nav class="nav" id="nav2"></nav></div>
     <div class="foot">
-      <label class="whoami" for="whoami"><span class="hidden">Your profile</span><select id="whoami"><option value="">Who are you?</option></select></label>
+      <div class="userchip" id="userchip"></div>
       <span>M1st Creatives · Borongan City</span>
     </div>
   </aside>
   <div class="work">
-    <div class="topbar"><img src="assets/logo-white.png" alt=""><b>M1st Studio</b><label class="whoami" for="whoami2" style="margin-left:auto;max-width:160px"><span class="hidden">Your profile</span><select id="whoami2"><option value="">Who are you?</option></select></label></div>
+    <div class="topbar"><img src="assets/logo-white.png" alt=""><b>M1st Studio</b><div class="userchip mini" id="userchip2"></div></div>
     <main>
       <div id="banner" class="banner hidden" role="status"></div>
       <div id="view"></div>

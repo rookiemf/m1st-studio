@@ -145,7 +145,7 @@ export const OBJECTIONS = [
 // Starter team for the one-tap setup on the Team page. "reports" uses the keys below.
 export const STARTER_TEAM = [
   { key: "kim", name: "Kim Rudillo Rebato", role: "Founder · Head of Finance and Communication", dept: "Leadership" },
-  { key: "bob", name: "Bob Agda", role: "Co-founder · Graphic Head Designer", dept: "Leadership", skills: "Graphic design, Video editing, Photography, Social media", portfolio: "https://www.behance.net/bobagdaGrfx" },
+  { key: "bob", name: "Bob Agda", email: "bobagda25@gmail.com", role: "Co-founder · Graphic Head Designer", dept: "Leadership", skills: "Graphic design, Video editing, Photography, Social media", portfolio: "https://www.behance.net/bobagdaGrfx" },
   { key: "druwin", name: "Druwin Tapon", role: "Creative Head", dept: "Leadership" },
   { key: "marinelle", name: "Marinelle Anabaab", role: "Head Video Editor", dept: "Video", reports: "druwin" },
   { key: "kane", name: "Kane Valles", role: "Video Editor", dept: "Video", reports: "marinelle" },

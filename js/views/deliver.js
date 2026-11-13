@@ -1,6 +1,8 @@
 // Deliver section: Calendar, Clients (list + per-client page with calendar), Team chart, Client portal.
 import { esc, I, fmt, today, parse, addDays, weekStart, monthStart, head, empty, cnt, toast, isUrl } from "../util.js";
-import { S, addDoc, setMe, updateDoc, member, memberName, client, clientName, postWho, sortedTeam, photoUrl } from "../data.js";
+import { S, addDoc, updateDoc, deleteDoc, member, memberName, client, clientName, postWho, sortedTeam, photoUrl, isAdmin, setAccess, myEmail } from "../data.js";
+import { OWNER_EMAILS } from "../firebase.js";
+import { meetingCard, bindMeetingButtons, meetingForm } from "./meetings.js";
 import { PRICE, OWN, DEPARTMENTS, STARTER_TEAM } from "../content.js";
 import { postPill, avatar, avatarStack, postForm, clientForm, memberForm, copyText, monthCalendar, agendaList } from "../ui.js";
 
@@ -89,7 +91,7 @@ function clientPage(id) {
   return `<div style="margin-bottom:10px"><a href="#clients" class="inline-note" style="color:var(--grey-600);text-decoration:none">${I.left.replace('aria-hidden="true"', 'aria-hidden="true" width="14" height="14" style="vertical-align:-2px"')} All clients</a></div>
   <div class="clienthero"><div class="ci"><h2>${esc(c.name)}</h2>
     <div class="facts" style="margin-top:8px"><div>Package<b>${esc(c.pkg)}</b></div><div>Niche<b>${esc(c.niche)}</b></div><div>Contact<b>${esc(c.contact || "–")}${c.email ? " · " + esc(c.email) : ""}</b></div><div>Client since<b>${fmt(c.start)}</b></div><div>Status<b>${esc(c.status || "Active")}</b></div></div></div>
-    <div class="actions"><button class="btn ghost" id="editClient">${I.edit}Edit</button><button class="btn ghost" id="copyPortal">${I.copy}Portal link</button><a class="btn ghost" href="#portal-${esc(c.id)}">${I.eye}Portal</a><button class="btn primary" id="addClientWork">${I.plus}Add work</button></div></div>
+    <div class="actions"><button class="btn ghost" id="editClient">${I.edit}Edit</button><button class="btn ghost" id="copyPortal">${I.copy}Portal link</button><a class="btn ghost" href="#portal-${esc(c.id)}">${I.eye}Portal</a><button class="btn ghost" id="meetClient">${I.cal}Meeting</button><button class="btn primary" id="addClientWork">${I.plus}Add work</button></div></div>
   <div class="cols" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start">
     <section class="panel"><div class="toolbar"><button class="btn ghost sm icon" id="cmPrev" aria-label="Previous month">${I.left}</button><button class="btn ghost sm icon" id="cmNext" aria-label="Next month">${I.right}</button><strong style="font-size:15px">${esc(monthLabel(off))}</strong>${off ? `<button class="btn ghost sm" id="cmToday">This month</button>` : ""}<span class="muted num" style="margin-left:auto;font-size:13px">${inMonth.length} pieces${rv ? ` · ${rv} waiting for ${esc(c.contact || "client")}` : ""}</span></div>
       ${monthCalendar(P, off)}<div class="only-mobile">${agendaList(inMonth, { showClient: false })}</div></section>
@@ -111,6 +113,7 @@ export function bindClients(v, r, render) {
   v.querySelector("#editClient").onclick = () => clientForm(c);
   v.querySelector("#editTeam").onclick = () => clientForm(c);
   v.querySelector("#addClientWork").onclick = () => postForm(null, { clientId: c.id });
+  v.querySelector("#meetClient").onclick = () => meetingForm(null, { clientId: c.id, type: "Client check-in", title: `Check-in with ${c.name}`, guests: c.email && c.email.includes("@") ? c.email : "" });
   v.querySelector("#copyPortal").onclick = () => copyText(location.href.split("#")[0] + "#portal-" + c.id, "Portal link copied");
   v.querySelector("#cmPrev").onclick = () => { S.ui.clientMonth--; render(); };
   v.querySelector("#cmNext").onclick = () => { S.ui.clientMonth++; render(); };
@@ -118,9 +121,9 @@ export function bindClients(v, r, render) {
 }
 
 // ================= TEAM =================
-const teamTabs = r => `<nav class="subtabs" aria-label="Team views">${[["team", "Team chart"], ["team-profiles", "Profiles"], ["team-assignments", "Who's in charge"]].map(([k, l]) => `<a href="#${k}"${r === k ? ' aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
+const teamTabs = r => `<nav class="subtabs" aria-label="Team views">${[["team", "Team chart"], ["team-profiles", "Profiles"], ["team-assignments", "Who's in charge"], ["team-access", "Access"]].map(([k, l]) => `<a href="#${k}"${r === k ? ' aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
 export function team(r) {
-  const sub = r === "team-profiles" ? profiles() : r === "team-assignments" ? assignments() : orgChart();
+  const sub = r === "team-profiles" ? profiles() : r === "team-assignments" ? assignments() : r === "team-access" ? access() : orgChart();
   return head("Team", "Everyone at M1st, their roles, and who handles which client.", `<button class="btn primary" id="addMember">${I.plus}Add a profile</button>`) + teamTabs(r) + sub;
 }
 function orgChart() {
@@ -171,7 +174,33 @@ function assignments() {
       <td class="num">${open.length}</td></tr>`; }).join("")}
   </tbody></table></div></section>`;
 }
+function access() {
+  const rows = S.access.slice().sort((a, b) => (a.role || "").localeCompare(b.role || "") || (a.email || "").localeCompare(b.email || ""));
+  const roleLabel = { admin: "Admin", team: "Team", client: "Client" };
+  return `<div class="banner" style="background:#F3F1F1;border-color:var(--line);color:var(--grey-900)">Only people listed here can sign in. <b>Team</b> sees everything; <b>Admin</b> can also manage access; <b>Client</b> sees only their own portal. ${OWNER_EMAILS.map(esc).join(" and ")} are always admins.</div>
+  ${isAdmin() ? `<section class="panel" style="margin-bottom:16px"><header><h2>Give someone access</h2></header><div class="body" style="padding-top:14px"><form class="frow" id="accForm" style="align-items:flex-end">
+    <label class="field" for="ac-email">Google account email<input id="ac-email" name="email" type="email" required autocomplete="off" placeholder="name@gmail.com"></label>
+    <label class="field" for="ac-role" style="flex:0 1 160px">Role<select id="ac-role" name="role"><option value="team">Team</option><option value="admin">Admin</option><option value="client">Client</option></select></label>
+    <label class="field hidden" for="ac-client" id="ac-client-wrap">Client<select id="ac-client" name="clientId"><option value="">Choose a client</option>${S.clients.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("")}</select></label>
+    <button class="btn primary" type="submit">${I.plus}Add</button></form></div></section>` : `<p class="inline-note">Only admins can change access.</p>`}
+  <section class="panel">${rows.length ? `<div class="tablebox"><table class="resp"><thead><tr><th>Email</th><th>Role</th><th>Profile or client</th><th class="right"><span class="hidden">Remove</span></th></tr></thead><tbody>${rows.map(a => {
+    const m = S.team.find(t => (t.email || "").toLowerCase() === a.id);
+    return `<tr><td class="c-main"><div class="t">${esc(a.id)}</div></td><td><span class="pill ${a.role === "admin" ? "brand" : a.role === "client" ? "dark" : ""}">${esc(roleLabel[a.role] || a.role)}</span></td><td>${a.role === "client" ? esc(clientName(a.clientId)) : m ? `<span style="display:inline-flex;gap:6px;align-items:center">${avatar(m, "sm")}${esc(m.name)}</span>` : '<span class="inline-note">No profile with this email yet</span>'}</td><td class="right">${isAdmin() && a.id !== myEmail() ? `<button class="btn ghost sm" data-revoke="${esc(a.id)}">Remove</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>`
+  : `<div class="body">${empty("users", "Nobody added yet", "Add each teammate's Google email here, or add their email on their profile.")}</div>`}</section>`;
+}
+
 export function bindTeam(v, r, render) {
+  const f = v.querySelector("#accForm");
+  if (f) {
+    const role = f.elements.role, wrap = v.querySelector("#ac-client-wrap");
+    role.onchange = () => wrap.classList.toggle("hidden", role.value !== "client");
+    f.onsubmit = async e => {
+      e.preventDefault(); const d = Object.fromEntries(new FormData(f)); const em = (d.email || "").trim().toLowerCase(); if (!em) return;
+      if (d.role === "client" && !d.clientId) { toast("Choose which client this person belongs to"); return; }
+      if (await setAccess(em, { role: d.role, clientId: d.role === "client" ? d.clientId : "" })) { toast(`${em} can now sign in`); f.reset(); }
+    };
+  }
+  v.querySelectorAll("[data-revoke]").forEach(b => b.onclick = async () => { await deleteDoc("access", b.dataset.revoke); toast("Access removed"); });
   v.querySelector("#addMember")?.addEventListener("click", () => memberForm());
   v.querySelector("#addMember2")?.addEventListener("click", () => memberForm());
   v.querySelector("#seedTeam")?.addEventListener("click", async e => {
@@ -213,6 +242,7 @@ export function portal(r) {
   <div class="portalhero"><img src="assets/logo-white.png" alt=""><div style="flex:1"><p>M1st Creatives · Client portal</p><h1>${esc(c.name)}</h1><p>${esc(c.pkg)} package</p></div>${lead ? `<div style="display:flex;align-items:center;gap:10px">${avatar(lead)}<div><p style="margin:0">Your account lead</p><b>${esc(lead.name)}</b></div></div>` : ""}</div>
   <div class="kpis"><div class="kpi${review.length ? " attn" : ""}"><div class="lbl">${I.eye}Needs your approval</div><div class="val">${cnt(review.length)}</div></div><div class="kpi"><div class="lbl">${I.clock}In production</div><div class="val">${cnt(working.length)}</div></div><div class="kpi"><div class="lbl">${I.check}Approved or posted</div><div class="val">${cnt(done.length)}</div></div></div>
   <section class="panel" style="margin-bottom:16px"><header><h2>Waiting for your approval</h2><span class="count">${review.length}</span></header><div class="body">${review.length ? review.map(p => row(p, true)).join("") : empty("check", "You're all caught up", "New drafts will appear here for your approval.")}</div></section>
+  ${(() => { const up = S.meetings.filter(m => m.clientId === c.id && m.date >= today() && m.status !== "Cancelled" && m.status !== "Done").sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)); return up.length ? `<section class="panel" style="margin-bottom:16px"><header><h2>Upcoming calls</h2><span class="count">${up.length}</span></header><div class="mlist">${up.map(m => meetingCard(m, { client: true })).join("")}</div></section>` : ""; })()}
   <section class="panel" style="margin-bottom:16px"><div class="toolbar"><button class="btn ghost sm icon" id="cmPrev" aria-label="Previous month">${I.left}</button><button class="btn ghost sm icon" id="cmNext" aria-label="Next month">${I.right}</button><strong style="font-size:15px">Your content calendar · ${esc(monthLabel(off))}</strong></div>${monthCalendar(P, off, { onlyView: true })}<div class="only-mobile">${agendaList(P.filter(p => p.due >= monthStart(off) && p.due < monthStart(off + 1)), { onlyView: true, showClient: false })}</div></section>
   <div class="cols">
     <section class="panel"><header><h2>Being made by our team</h2><span class="count">${working.length}</span></header><div class="body">${working.length ? working.map(p => row(p, false)).join("") : empty("clock", "Nothing in production", "")}</div></section>

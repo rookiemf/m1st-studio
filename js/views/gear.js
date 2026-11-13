@@ -1,6 +1,6 @@
 // Equipment: what M1st owns, and whether each item is free, in use, booked for a shoot, or being repaired.
 import { esc, I, fmt, today, head, empty, cnt, toast, opts } from "../util.js";
-import { S, addDoc, updateDoc, deleteDoc, member, memberName, sortedTeam, uploadPhoto, photoUrl } from "../data.js";
+import { S, addDoc, updateDoc, deleteDoc, member, memberName, sortedTeam, photoUrl } from "../data.js";
 import { avatar, openDialog, closeDialog, confirmBox, teamOptions, formData } from "../ui.js";
 
 export const GEAR_TYPES = ["Camera", "Lens", "Lighting", "Audio", "Stabilizer / tripod", "Drone", "Computer", "Drawing tablet", "Storage / cards", "Accessory"];
@@ -39,7 +39,7 @@ export function gear() {
   ${items.length ? `<div class="cols" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr);align-items:start">
     <section class="panel"><div class="tablebox"><table class="resp"><thead><tr><th>Item</th><th>Type</th><th>Status</th><th>Who / where</th><th class="right"><span class="hidden">Actions</span></th></tr></thead><tbody>
     ${states.map(([g, s]) => `<tr>
-      <td class="c-main"><div style="display:flex;gap:10px;align-items:center">${g.photoId ? `<img src="${esc(photoUrl(g.photoId))}" alt="" style="width:40px;height:40px;border-radius:8px;object-fit:cover">` : `<span class="avatar" style="border-radius:8px;background:#EFEDED;color:var(--grey-900)" aria-hidden="true">${I.bag.replace('aria-hidden="true"', 'aria-hidden="true" width="18" height="18"')}</span>`}<div><div class="t">${esc(g.name)}</div>${g.notes ? `<div class="s">${esc(g.notes)}</div>` : ""}</div></div></td>
+      <td class="c-main"><div style="display:flex;gap:10px;align-items:center">${g.photoId && photoUrl(g.photoId) ? `<img referrerpolicy="no-referrer" src="${esc(photoUrl(g.photoId))}" alt="" style="width:40px;height:40px;border-radius:8px;object-fit:cover">` : `<span class="avatar" style="border-radius:8px;background:#EFEDED;color:var(--grey-900)" aria-hidden="true">${I.bag.replace('aria-hidden="true"', 'aria-hidden="true" width="18" height="18"')}</span>`}<div><div class="t">${esc(g.name)}</div>${g.notes ? `<div class="s">${esc(g.notes)}</div>` : ""}</div></div></td>
       <td class="c-hide"><span class="tag">${esc(g.type)}</span></td>
       <td><span class="pill ${s.cls}">${esc(s.label)}</span></td>
       <td>${s.key === "out" ? `<span style="display:inline-flex;gap:6px;align-items:center">${avatar(member(s.who), "sm")}${esc(memberName(s.who) || "Someone")}</span><div class="s">${esc(g.outFor || "")}${g.returnBy ? ` · back ${fmt(g.returnBy)}` : ""}</div>` : s.key === "shoot" ? `<a href="#local" class="s" style="color:var(--maroon)">${esc(s.shoot.clientName)} · ${esc(s.shoot.eventType)}</a>` : s.key === "repair" ? `<span class="s">${esc(g.repairNote || "")}</span>` : `<span class="s">In the studio</span>`}</td>
@@ -56,14 +56,12 @@ function gearForm(g) {
   openDialog(isNew ? "Add equipment" : "Edit equipment", `<form class="form db" id="gearForm">
     <div class="frow"><label class="field" for="gf-name">Name<input id="gf-name" name="name" required autocomplete="off" value="${esc(p.name)}" placeholder="e.g. Sony 50mm f/1.8"></label><label class="field" for="gf-type">Type<select id="gf-type" name="type">${opts(GEAR_TYPES, p.type)}</select></label></div>
     <label class="field" for="gf-notes">Notes (serial number, what's in the bag, batteries)<input id="gf-notes" name="notes" autocomplete="off" value="${esc(p.notes)}"></label>
-    ${S.assets ? `<label class="field" for="gf-photo">Photo<input id="gf-photo" type="file" accept="image/*"></label><input type="hidden" name="photoId" value="${esc(p.photoId)}">` : ""}
+    <label class="field" for="gf-photo">Photo link (optional)<input id="gf-photo" name="photoId" type="url" autocomplete="off" value="${esc(p.photoId)}" placeholder="Google Drive share link"></label>
     <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="repair" style="width:16px;height:16px;min-height:0;accent-color:var(--maroon)"${p.repair ? " checked" : ""}> Needs repair</label>
     <label class="field" for="gf-rnote">What's wrong (if it needs repair)<input id="gf-rnote" name="repairNote" autocomplete="off" value="${esc(p.repairNote)}"></label>
   </form>`, `${isNew ? "" : `<button class="btn ghost" type="button" id="gfDel" style="margin-right:auto">${I.trash}Delete</button>`}<button class="btn ghost" type="button" id="gfCancel">Cancel</button><button class="btn primary" type="submit" form="gearForm">${isNew ? "Add" : "Save"}</button>`, () => {
     const f = document.getElementById("gearForm");
     document.getElementById("gfCancel").onclick = closeDialog;
-    const ph = document.getElementById("gf-photo");
-    if (ph) ph.onchange = async () => { const file = ph.files[0]; if (!file) return; ph.disabled = true; const id = await uploadPhoto(file); ph.disabled = false; if (id) { f.elements.photoId.value = id; toast("Photo ready. Save to keep it."); } };
     const del = document.getElementById("gfDel");
     if (del) del.onclick = () => confirmBox(`Delete ${p.name}?`, () => deleteDoc("gear", g.id));
     f.onsubmit = async e => {

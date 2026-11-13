@@ -1,6 +1,6 @@
 // Reusable UI pieces: pills, avatars, dialogs, forms and the month calendar.
 import { esc, I, opts, fmt, today, parse, addDays, monthStart, initials, toast, isUrl } from "./util.js";
-import { S, addDoc, updateDoc, deleteDoc, member, memberName, clientName, postWho, followDue, sortedTeam, uploadPhoto, photoUrl } from "./data.js";
+import { S, addDoc, updateDoc, deleteDoc, member, memberName, clientName, postWho, followDue, sortedTeam, photoUrl, isAdmin, setAccess } from "./data.js";
 import { NICHES, CHANNELS, POST_TYPES, POST_STATUS, PACKAGES, DEPARTMENTS, OWN, TEMPLATES, DETAIL_HINT, fillMessage, CALL_OUTCOMES, PLATFORMS, MAIN_PLATFORMS, PILLARS } from "./content.js";
 
 // ---------- small pieces ----------
@@ -14,7 +14,7 @@ export const postPill = s => `<span class="pill ${({ "Idea": "muted", "In progre
 
 export function avatar(m, size = "") {
   if (!m) return `<span class="avatar ${size}" aria-hidden="true">?</span>`;
-  if (m.photoId) return `<img class="avatar ${size}" src="${esc(photoUrl(m.photoId))}" alt="">`;
+  if (m.photoId && photoUrl(m.photoId)) return `<img class="avatar ${size}" src="${esc(photoUrl(m.photoId))}" alt="" referrerpolicy="no-referrer">`;
   return `<span class="avatar ${size}${m.dept === "Leadership" ? " m" : ""}" aria-hidden="true">${esc(initials(m.name))}</span>`;
 }
 export const avatarStack = ids => `<span class="avstack">${ids.map(id => member(id)).filter(Boolean).slice(0, 5).map(m => avatar(m, "sm")).join("")}</span>`;
@@ -165,33 +165,28 @@ export function memberForm(m) {
   const others = sortedTeam().filter(x => !m || x.id !== m.id);
   openDialog(isNew ? "Add a profile" : "Edit profile", `<form class="form db" id="memForm">
     <div style="display:flex;gap:14px;align-items:center">${avatar(p.photoId || p.name ? p : null, "lg")}
-      <div class="form" style="gap:6px;flex:1">${S.assets ? `<label class="field" for="mf-photo">Profile photo<input id="mf-photo" type="file" accept="image/*"></label><input type="hidden" name="photoId" value="${esc(p.photoId)}">` : `<p class="inline-note" style="margin:0">Photo upload works when the app is opened on claude.ai by an Editor.</p>`}</div></div>
+      <div class="form" style="gap:6px;flex:1"><label class="field" for="mf-photo">Profile photo link<input id="mf-photo" name="photoId" type="url" autocomplete="off" value="${esc(p.photoId)}" placeholder="Google Drive share link or image URL"></label><span class="inline-note">In Google Drive: Share → Anyone with the link → Copy link.</span></div></div></div>
     <div class="frow"><label class="field" for="mf-name">Full name<input id="mf-name" name="name" required autocomplete="off" value="${esc(p.name)}"></label><label class="field" for="mf-role">Role / title<input id="mf-role" name="role" required autocomplete="off" value="${esc(p.role)}" placeholder="e.g. Head Video Editor"></label></div>
     <div class="frow"><label class="field" for="mf-dept">Department<select id="mf-dept" name="dept">${opts(DEPARTMENTS, p.dept)}</select></label><label class="field" for="mf-reports">Reports to<select id="mf-reports" name="reportsTo"><option value="">Nobody (top of chart)</option>${others.map(o => `<option value="${esc(o.id)}"${o.id === p.reportsTo ? " selected" : ""}>${esc(o.name)}</option>`).join("")}</select></label></div>
+    <label class="field" for="mf-email">Google account email (used to sign in)<input id="mf-email" name="email" type="email" autocomplete="off" value="${esc(p.email)}" placeholder="name@gmail.com"></label>
     <label class="field" for="mf-skills">Skills (comma separated)<input id="mf-skills" name="skills" autocomplete="off" value="${esc(p.skills)}" placeholder="e.g. Premiere Pro, color grading, motion graphics"></label>
     <div class="frow"><label class="field" for="mf-contact">Contact (email, phone or handle)<input id="mf-contact" name="contact" autocomplete="off" value="${esc(p.contact)}"></label><label class="field" for="mf-portfolio">Portfolio link<input id="mf-portfolio" name="portfolio" type="url" autocomplete="off" value="${esc(p.portfolio)}" placeholder="https://behance.net/..."></label></div>
     <label class="field" for="mf-bio">Short bio<textarea id="mf-bio" name="bio" rows="3">${esc(p.bio)}</textarea></label>
-    ${isNew ? `<label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" name="isMe" style="width:16px;height:16px;min-height:0;accent-color:var(--maroon)" ${S.me ? "" : "checked"}> This is me</label>` : ""}
   </form>`, `${isNew ? "" : `<button class="btn ghost" type="button" id="mfDel" style="margin-right:auto">${I.trash}Remove</button>`}<button class="btn ghost" type="button" id="mfCancel">Cancel</button><button class="btn primary" type="submit" form="memForm">${isNew ? "Add profile" : "Save profile"}</button>`, () => {
     document.getElementById("mfCancel").onclick = closeDialog;
     const f = document.getElementById("memForm");
-    const ph = document.getElementById("mf-photo");
-    if (ph) ph.onchange = async () => {
-      const file = ph.files[0]; if (!file) return;
-      ph.disabled = true; toast("Uploading photo…");
-      const id = await uploadPhoto(file); ph.disabled = false;
-      if (id) { f.elements.photoId.value = id; toast("Photo ready. Save to keep it."); f.querySelector(".avatar")?.replaceWith(Object.assign(document.createElement("img"), { className: "avatar lg", src: photoUrl(id), alt: "" })); }
-    };
     const del = document.getElementById("mfDel");
     if (del) del.onclick = () => confirmBox(`Remove ${p.name} from the team?`, async () => {
       await deleteDoc("team", m.id);
       for (const x of S.team.filter(t => t.reportsTo === m.id)) await updateDoc("team", x.id, { reportsTo: m.reportsTo || "" });
     }, "Remove");
     f.onsubmit = async e => {
-      e.preventDefault(); const d = formData(f); const isMe = !!d.isMe; delete d.isMe;
+      e.preventDefault(); const d = formData(f); d.email = (d.email || "").trim().toLowerCase();
       d.name = d.name.trim(); if (!d.name) return; closeDialog();
-      if (isNew) { const id = await addDoc("team", d); if (id && isMe) { const { setMe } = await import("./data.js"); setMe(id); } toast("Profile added"); }
-      else { await updateDoc("team", m.id, d); toast("Profile saved"); }
+      if (isNew) await addDoc("team", d); else await updateDoc("team", m.id, d);
+      // Give this person team access so they can sign in (admins only; others are refused by the rules).
+      if (d.email && isAdmin() && !S.access.some(a => a.email === d.email)) await setAccess(d.email, { role: "team" });
+      toast(isNew ? "Profile added" : "Profile saved");
     };
   });
 }

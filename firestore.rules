@@ -1,0 +1,52 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function email() { return request.auth.token.email.lower(); }
+    function isOwner() { return signedIn() && email() in ['m1stcreatives25@gmail.com', 'bobagda25@gmail.com']; }
+    function acc() { return get(/databases/$(database)/documents/access/$(email())).data; }
+    function hasAccess() { return signedIn() && exists(/databases/$(database)/documents/access/$(email())); }
+    function isAdmin() { return isOwner() || (hasAccess() && acc().role == 'admin'); }
+    function isTeam() { return isOwner() || (hasAccess() && acc().role in ['admin', 'team']); }
+    function isClientOf(cid) { return hasAccess() && acc().role == 'client' && acc().clientId == cid; }
+
+    // Who may sign in. Admins manage it; each person can read their own entry.
+    match /access/{addr} {
+      allow read: if isTeam() || (signedIn() && email() == addr);
+      allow write: if isAdmin();
+    }
+
+    // Team profiles: everyone with access (clients see who works on their account).
+    match /team/{id} {
+      allow read: if isTeam() || hasAccess();
+      allow write: if isTeam();
+    }
+
+    match /clients/{id} {
+      allow read: if isTeam() || isClientOf(id);
+      allow write: if isTeam();
+    }
+
+    match /meetings/{id} {
+      allow read: if isTeam() || isClientOf(resource.data.clientId);
+      allow write: if isTeam();
+    }
+
+    // Clients can only approve or ask for changes on their own work.
+    match /posts/{id} {
+      allow read: if isTeam() || isClientOf(resource.data.clientId);
+      allow create, delete: if isTeam();
+      allow update: if isTeam() || (
+        isClientOf(resource.data.clientId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'clientNote', 'reviewedAt', 'reviews', 'updatedAt'])
+        && request.resource.data.status in ['Approved', 'Changes requested']
+      );
+    }
+
+    // Everything else is team-only.
+    match /{col}/{id} {
+      allow read, write: if isTeam() && col in ['leads', 'calls', 'socials', 'messages', 'bookings', 'gear', 'campaigns'];
+    }
+  }
+}
