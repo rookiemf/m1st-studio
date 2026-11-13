@@ -16,15 +16,17 @@ export function calendar() {
     <select id="calClient" aria-label="Filter by client"><option value="">All clients</option><option value="${OWN}"${u.calClient === OWN ? " selected" : ""}>M1st (our page)</option>${S.clients.map(c => `<option value="${esc(c.id)}"${c.id === u.calClient ? " selected" : ""}>${esc(c.name)}</option>`).join("")}</select>
     <select id="calPerson" aria-label="Filter by team member"><option value="">Everyone</option>${S.me ? `<option value="${esc(S.me)}"${u.calPerson === S.me ? " selected" : ""}>Only my work</option>` : ""}${sortedTeam().filter(m => m.id !== S.me).map(m => `<option value="${esc(m.id)}"${m.id === u.calPerson ? " selected" : ""}>${esc(m.name)}</option>`).join("")}<option value="none"${u.calPerson === "none" ? " selected" : ""}>Unassigned</option></select>
     <div class="seg" role="group" aria-label="View"><button type="button" data-calview="week" aria-pressed="${u.calView === "week"}">Week</button><button type="button" data-calview="month" aria-pressed="${u.calView === "month"}">Month</button></div>`;
+  const shoots = (u.calClient ? [] : S.bookings.filter(b => b.status !== "Cancelled" && (!u.calPerson || (b.crewIds || []).includes(u.calPerson) || b.leadId === u.calPerson)));
   let body, label;
   if (u.calView === "month") {
+    P = P.concat(shoots.map(b => ({ id: "b" + b.id, due: b.date, title: "Shoot: " + b.clientName, _attr: `data-booking="${esc(b.id)}"`, _cls: "shoot" })));
     label = monthLabel(u.monthOffset);
     const ms = monthStart(u.monthOffset), me = addDays(monthStart(u.monthOffset + 1), -1);
     body = monthCalendar(P, u.monthOffset) + `<div class="only-mobile">${agendaList(P.filter(p => p.due >= ms && p.due <= me)) || `<div class="body">${empty("cal", "Nothing this month", "")}</div>`}</div>`;
   } else {
     const ws = weekStart(u.weekOffset), t = today(); const days = [...Array(7)].map((_, i) => addDays(ws, i));
     label = `${fmt(days[0])} – ${fmt(days[6])}, ${parse(days[6]).getFullYear()}`;
-    body = `<div class="week">${days.map(d => { const D = P.filter(p => p.due === d); return `<div class="day${d === t ? " today" : ""}"><div class="dh"><span>${parse(d).toLocaleDateString(undefined, { weekday: "short" })}</span><b>${parse(d).getDate()}</b></div><div class="dl">${D.map(p => `<button class="post" data-post="${esc(p.id)}"><span class="pt">${esc(p.title)}</span><span class="pc"><span class="dot${p.clientId === OWN ? " own" : ""}" aria-hidden="true"></span>${esc(clientName(p.clientId))}</span><span class="pc">${avatar(member(p.assigneeId), "sm")}${esc(postWho(p) || "Unassigned")}</span><span>${postPill(p.status)}</span></button>`).join("")}</div></div>`; }).join("")}</div>`;
+    body = `<div class="week">${days.map(d => { const D = P.filter(p => p.due === d); return `<div class="day${d === t ? " today" : ""}"><div class="dh"><span>${parse(d).toLocaleDateString(undefined, { weekday: "short" })}</span><b>${parse(d).getDate()}</b></div><div class="dl">${shoots.filter(b => b.date === d).map(b => `<button class="post" data-booking="${esc(b.id)}" style="background:var(--grey-900);color:#fff;border-color:var(--grey-900)"><span class="pt">${esc(b.clientName)}</span><span class="pc" style="color:#D9D4D5">Local shoot · ${esc(b.eventType)}</span>${b.time ? `<span class="pc" style="color:#D9D4D5">${esc(b.time)}</span>` : ""}</button>`).join("")}${D.map(p => `<button class="post" data-post="${esc(p.id)}"><span class="pt">${esc(p.title)}</span><span class="pc"><span class="dot${p.clientId === OWN ? " own" : ""}" aria-hidden="true"></span>${esc(clientName(p.clientId))}</span><span class="pc">${avatar(member(p.assigneeId), "sm")}${esc(postWho(p) || "Unassigned")}</span><span>${postPill(p.status)}</span></button>`).join("")}</div></div>`; }).join("")}</div>`;
   }
   return head("Calendar", "All work across clients. Anyone can add their work and see who's making what.", `<button class="btn primary" id="addPost">${I.plus}Add work</button>`) + `
   <section class="panel">
@@ -35,7 +37,7 @@ export function calendar() {
       <span style="flex:1"></span>${filters}
     </div>
     ${body}
-    <div class="legend"><span><i class="dot own"></i>M1st's own page</span><span><i class="dot"></i>Client work</span><span style="color:var(--warn)">Orange outline: waiting for client</span></div>
+    <div class="legend"><span><i class="dot own"></i>M1st's own page</span><span><i class="dot"></i>Client work</span><span><i class="dot" style="background:var(--grey-900)"></i>Local shoot</span><span style="color:var(--warn)">Orange outline: waiting for client</span></div>
   </section>`;
 }
 export function bindCalendar(v, r, render) {

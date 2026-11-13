@@ -321,3 +321,10 @@ nav.nav a .badge.hot{background:#E9A23B;color:#121212;animation:ping 1.8s infini
 .only-mobile{display:none}
 @media (max-width:900px){.only-mobile{display:block}}
 body.portal-only .whoami{display:none}
+.chipbtn.shoot{background:var(--grey-900);color:#fff}
+@media (max-width:900px){
+  .mobilenav{overflow-x:auto;scrollbar-width:none;justify-content:flex-start}
+  .mobilenav::-webkit-scrollbar{display:none}
+  .mobilenav a{flex:0 0 64px}
+  .month .chipbtn.shoot{background:var(--grey-900)}
+}

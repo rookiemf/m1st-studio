@@ -157,3 +157,47 @@ export const STARTER_TEAM = [
   { key: "ronan", name: "Ro Nan", role: "Scriptwriter", dept: "Writing", reports: "kim" },
   { key: "michael", name: "Michael Nethearl", role: "Photographer and Graphic Designer", dept: "Photography", reports: "bob" }
 ];
+
+// ---------- social ----------
+export const PLATFORMS = ["Facebook", "Instagram", "TikTok", "YouTube", "LinkedIn", "Messenger", "Other"];
+// Free tools the team opens to post and reply. No logins or passwords are stored in this app.
+export const SOCIAL_TOOLS = [
+  { name: "Meta Business Suite", what: "Post and schedule to Facebook and Instagram, and reply to both inboxes", post: "https://business.facebook.com/latest/home", inbox: "https://business.facebook.com/latest/inbox/all", free: true },
+  { name: "Instagram", what: "Post reels and stories from the app or web", post: "https://www.instagram.com/", inbox: "https://www.instagram.com/direct/inbox/", free: true },
+  { name: "TikTok Studio", what: "Upload and schedule TikTok videos", post: "https://www.tiktok.com/tiktokstudio/upload", inbox: "https://www.tiktok.com/messages", free: true },
+  { name: "YouTube Studio", what: "Upload and schedule videos and Shorts", post: "https://studio.youtube.com/", inbox: "https://studio.youtube.com/", free: true },
+  { name: "LinkedIn", what: "Post as Bob or the company page; reply to messages", post: "https://www.linkedin.com/feed/", inbox: "https://www.linkedin.com/messaging/", free: true },
+  { name: "Metricool (free plan)", what: "Plan one brand's posts across networks in one calendar", post: "https://app.metricool.com/", inbox: "", free: true }
+];
+export const MSG_TOPICS = ["Pricing question", "Booking a shoot", "Overseas client lead", "Collaboration", "Support or complaint", "Other"];
+export const MSG_STATUS = ["New", "Replied", "Closed"];
+
+// ---------- local shoots ----------
+export const SERVICES = ["Photography", "Videography", "Photo and video", "Filmmaking"];
+export const EVENT_TYPES = ["Wedding", "Debut (18th birthday)", "Birthday", "Baptism", "Graduation", "Prenup / engagement", "Family portrait", "Corporate / LGU event", "Product shoot", "Food and menu shoot", "Music video", "Short film", "Commercial / ad", "Concert / event coverage", "Other"];
+export const BOOKING_STATUS = ["Inquiry", "Booked", "Shot", "Editing", "Delivered", "Cancelled"];
+export const peso = n => "₱" + Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 0 });
+
+// Quick replies for local clients. {name} {service} {event} {date} {price} {deposit} {balance} {location} are filled in.
+export const LOCAL_REPLIES = {
+  "Inquiry reply": {
+    en: "Hi {name}! Thank you for reaching out to M1st Creatives. We'd love to cover your {event}.\n\nTo check our availability and send you a package, could you tell us:\n1. The date and time\n2. The venue\n3. Photo, video, or both?\n\nWe'll get back to you within the day.",
+    fil: "Hi {name}! Salamat sa pag-message sa M1st Creatives. Gusto naming i-cover ang inyong {event}.\n\nPara ma-check namin ang schedule at maipadala ang package, pakisabi lang po:\n1. Petsa at oras\n2. Venue\n3. Photo, video, o pareho?\n\nBabalikan namin kayo ngayong araw."
+  },
+  "Quote / package": {
+    en: "Hi {name}! Here's our package for your {event} on {date}:\n\n{service} coverage: {price}\nTo lock in the date, we ask for a {deposit} reservation fee. The balance of {balance} is due on the day of the shoot.\n\nLet us know if you'd like to book, and we'll send the payment details.",
+    fil: "Hi {name}! Ito po ang package namin para sa inyong {event} sa {date}:\n\n{service} coverage: {price}\nPara ma-reserve ang petsa, {deposit} po ang reservation fee. Ang natitirang {balance} ay babayaran sa araw ng shoot.\n\nSabihan lang po kami kung itutuloy, at ipapadala namin ang payment details."
+  },
+  "Booking confirmed": {
+    en: "Hi {name}! You're all set. We've received your reservation fee and your {event} on {date} at {location} is officially booked with M1st Creatives.\n\nWe'll message you a few days before the shoot to go over the details. Salamat!",
+    fil: "Hi {name}! Confirmed na po. Natanggap namin ang reservation fee at booked na ang inyong {event} sa {date} sa {location}.\n\nMagme-message kami ilang araw bago ang shoot para pag-usapan ang details. Salamat po!"
+  },
+  "Day-before reminder": {
+    en: "Hi {name}! Just a reminder that our team will be at {location} for your {event} on {date}. If anything changes with the time or venue, please let us know today. See you!",
+    fil: "Hi {name}! Paalala lang po na pupunta ang team namin sa {location} para sa inyong {event} sa {date}. Kung may pagbabago sa oras o venue, pakisabi lang po ngayong araw. See you!"
+  },
+  "Photos / video ready": {
+    en: "Hi {name}! Your {service} from the {event} is ready! Here's your link: [paste link]\n\nThe remaining balance is {balance}. Thank you for trusting M1st Creatives, and we'd really appreciate a review on our page!",
+    fil: "Hi {name}! Ready na po ang inyong {service} mula sa {event}! Narito ang link: [paste link]\n\nAng natitirang balance ay {balance}. Salamat sa pagtitiwala sa M1st Creatives, at sana makapag-iwan kayo ng review sa aming page!"
+  }
+};

@@ -2,10 +2,10 @@
 // Runs in "local mode" (data kept only until the page closes) when no database is available.
 import { banner, toast } from "./util.js";
 
-export const COLLECTIONS = ["leads", "clients", "posts", "team", "calls"];
+export const COLLECTIONS = ["leads", "clients", "posts", "team", "calls", "socials", "messages", "bookings", "gear"];
 
 export const S = {
-  leads: [], clients: [], posts: [], team: [], calls: [],
+  leads: [], clients: [], posts: [], team: [], calls: [], socials: [], messages: [], bookings: [], gear: [],
   loaded: Object.fromEntries(COLLECTIONS.map(c => [c, false])),
   db: null, assets: null, local: false, readOnly: false,
   me: readLocal("m1st.me") || "",
@@ -13,7 +13,7 @@ export const S = {
     animate: true, dataAnimated: false,
     weekOffset: 0, monthOffset: 0, calView: "week", calClient: "", calPerson: "",
     clientMonth: 0, leadFilter: { niche: "", status: "", q: "" },
-    portalClient: "", script: "discovery", scriptLead: "", scriptBig: false, scriptChecks: {}
+    portalClient: "", msgFilter: "open", localMonth: 0, localFilter: "", replyKey: "Inquiry reply", replyLang: "en", replyBooking: "", script: "discovery", scriptLead: "", scriptBig: false, scriptChecks: {}
   }
 };
 
