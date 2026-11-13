@@ -18,7 +18,7 @@ export const ago = iso => {
   const h = Math.round(m / 60); if (h < 24) return h + "h ago";
   const d = Math.round(h / 24); return d < 7 ? d + "d ago" : new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
-export const initials = name => String(name || "?").trim().split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase() || "?";
+export const initials = name => { const w = String(name || "").replace(/["'“”‘’()]/g, "").trim().split(/\s+/).filter(Boolean); return ((w[0] || "?")[0] + (w.length > 1 ? w[w.length - 1][0] : "")).toUpperCase(); };
 export const isUrl = s => /^https?:\/\//i.test(String(s || "").trim());
 
 export const I = {

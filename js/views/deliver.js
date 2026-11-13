@@ -129,17 +129,23 @@ function orgChart() {
   const kids = id => sortedTeam().filter(m => (m.reportsTo || "") === id && m.id !== id);
   const roots = sortedTeam().filter(m => !m.reportsTo || !ids.has(m.reportsTo));
   const seen = new Set();
-  const node = m => {
+  const count = id => { const k = kids(id); return k.length + k.reduce((n, m) => n + count(m.id), 0); };
+  const leads = id => S.clients.filter(c => c.leadId === id).length;
+  const branch = list => list.length ? `<ul>${list.map(m => {
     if (seen.has(m.id)) return ""; seen.add(m.id);
-    const k = kids(m.id).filter(x => !seen.has(x.id));
-    const lead = S.clients.filter(c => c.leadId === m.id).length;
-    return `<li><button class="node${m.id === S.me ? " me" : ""}" data-member="${esc(m.id)}">${avatar(m, "lg")}<span class="dept">${esc(m.dept || "")}</span><b>${esc(m.name)}</b><span>${esc(m.role || "")}</span>${lead ? `<span class="pill brand" style="margin-top:2px">Leads ${lead} client${lead === 1 ? "" : "s"}</span>` : ""}</button>${k.length ? `<ul>${k.map(node).join("")}</ul>` : ""}</li>`;
-  };
-  const tree = roots.map(node).join("");
+    return `<li><button class="orow${m.id === S.me ? " me" : ""}" data-member="${esc(m.id)}">${avatar(m)}<span class="otx"><span class="onm">${esc(m.name)}${m.id === S.me ? ' <span class="pill brand">You</span>' : ""}</span><span class="orl">${esc(m.role || "")}</span></span>${leads(m.id) ? `<span class="pill brand">${leads(m.id)} client${leads(m.id) === 1 ? "" : "s"}</span>` : ""}</button>${branch(kids(m.id))}</li>`;
+  }).join("")}</ul>` : "";
+  const cols = roots.map(r => {
+    seen.add(r.id);
+    const n = count(r.id);
+    return `<div class="ocol"><button class="ohead${r.id === S.me ? " me" : ""}" data-member="${esc(r.id)}">${avatar(r, "lg")}<span class="otx"><span class="odept">${esc(r.dept || "")}</span><span class="onm">${esc(r.name)}</span><span class="orl">${esc(r.role || "")}</span><span class="ometa">${n ? `${n} ${n === 1 ? "person" : "people"} on their team` : "No direct team yet"}${leads(r.id) ? ` · leads ${leads(r.id)} client${leads(r.id) === 1 ? "" : "s"}` : ""}</span></span></button>
+      <div class="otree">${branch(kids(r.id)) || `<p class="inline-note" style="margin:10px 0 0 4px">Nobody reports here yet.</p>`}</div></div>`;
+  }).join("");
   const byDept = DEPARTMENTS.map(d => [d, S.team.filter(m => m.dept === d).length]).filter(x => x[1]);
-  return `<section class="panel" style="margin-bottom:16px"><header><h2>Team chart</h2><span class="count">${S.team.length} people · tap anyone to see their profile</span></header><div class="org"><ul>${tree}</ul></div>
+  return `<section class="panel" style="margin-bottom:16px"><header><h2>Team chart</h2><span class="count">${S.team.length} people · tap anyone to open their profile</span></header>
+    <div class="orgcols">${cols}</div>
     <div class="legend" style="flex-wrap:wrap">${byDept.map(([d, n]) => `<span>${esc(d)} <b class="num">${n}</b></span>`).join("")}</div></section>
-    <p class="inline-note">To change the chart, edit someone's profile and set who they report to.</p>`;
+    <p class="inline-note">The top row is the leadership team. To move someone, edit their profile and change who they report to.</p>`;
 }
 function profiles() {
   if (!S.team.length) return `<section class="panel">${empty("team", "No profiles yet", "", `<button class="btn primary sm" id="addMember2">${I.plus}Add my profile</button>`)}</section>`;
