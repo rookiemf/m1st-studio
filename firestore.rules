@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function email() { return request.auth.token.email.lower(); }
+    function isOwner() { return signedIn() && email() == 'bobagda25@gmail.com'; }
+    function isMember() { return isOwner() || (signedIn() && exists(/databases/$(database)/documents/access/$(email()))); }
+
+    // Who may sign in. Only Bob adds or removes people; each person can read their own entry.
+    match /access/{addr} {
+      allow read: if isMember() || (signedIn() && email() == addr);
+      allow write: if isOwner();
+    }
+
+    // Chat: post as yourself, delete your own messages.
+    match /chat/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && request.resource.data.createdByEmail == email();
+      allow delete: if isOwner() || (isMember() && resource.data.createdByEmail == email());
+    }
+
+    // Everything else is shared between members.
+    match /{col}/{id} {
+      allow read, write: if isMember() && col in ['projects', 'clients', 'tasks', 'jobs', 'sites', 'events', 'invoices', 'profiles'];
+    }
+  }
+}
