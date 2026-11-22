@@ -4,6 +4,25 @@ import { esc, I, fmt, fmtLong, today, addDays, monthStart, parse, head, empty, c
 import { S, addDoc, updateDoc, deleteDoc, member, memberName, postWho } from "../data.js";
 import { OWN, PILLARS, CAMPAIGN_GOALS, CAMPAIGN_AUDIENCE, CAMPAIGN_STATUS, WEEKLY_RHYTHM, MAIN_PLATFORMS, PLATFORM_ROLE, peso } from "../content.js";
 import { avatar, postPill, postForm, openDialog, closeDialog, confirmBox, teamOptions, formData, monthCalendar } from "../ui.js";
+import { PLANS } from "../plans.js";
+import { isAdmin } from "../data.js";
+
+// A ready-made plan that hasn't been added yet (leaders only, once posts have loaded).
+const pendingPlan = () => isAdmin() && S.loaded.posts ? PLANS.find(pl => !S.posts.some(p => p.planId === pl.id) && !S.ui["planHidden-" + pl.id]) : null;
+function planBanner() {
+  const pl = pendingPlan(); if (!pl) return "";
+  return `<section class="panel" style="margin-bottom:16px;border-color:var(--maroon)"><div class="body" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px"><div><b>${esc(pl.name)} is ready</b><div class="inline-note">${pl.posts.length} posts with captions and visual notes, ${esc(pl.range)}. They go in as ideas for M1st (our page).</div></div><div style="display:flex;gap:8px"><button class="btn ghost sm" id="planHide">Not now</button><button class="btn primary sm" id="planAdd">${I.plus}Add to the content calendar</button></div></div></section>`;
+}
+async function addPlan(pl) {
+  let campaignId = "";
+  if (pl.campaign) campaignId = await addDoc("campaigns", { ...pl.campaign, ownerId: S.me || "" }) || "";
+  for (const p of pl.posts) {
+    const { n, ...rest } = p;
+    await addDoc("posts", { ...rest, clientId: OWN, status: "Idea", assigneeId: "", link: "", campaignId, planId: pl.id });
+  }
+  toast(`${pl.posts.length} posts added to the content calendar`);
+}
+
 
 const own = () => S.posts.filter(p => p.clientId === OWN);
 const pillar = name => PILLARS.find(x => x.name === name);
@@ -16,7 +35,7 @@ const tabs = r => {
 export function marketing(r) {
   const body = r === "marketing-calendar" ? calendarTab() : r === "marketing-review" ? reviewTab() : planTab();
   const act = r === "marketing" ? `<button class="btn primary" id="newCamp">${I.plus}New campaign</button>` : `<button class="btn primary" id="newContent">${I.plus}Add content</button>`;
-  return head("Marketing", "How M1st advertises itself: what we post, when, and what's approved.", act) + tabs(r) + body;
+  return head("Marketing", "How M1st advertises itself: what we post, when, and what's approved.", act) + planBanner() + tabs(r) + body;
 }
 
 // ---------- plan ----------
@@ -173,6 +192,8 @@ async function addVersion(p, m) {
 export function bindMarketing(v, r, render) {
   const on = (sel, fn) => v.querySelector(sel)?.addEventListener("click", fn);
   on("#newCamp", () => campForm()); on("#newCamp2", () => campForm());
+  on("#planAdd", async e => { const pl = pendingPlan(); if (!pl) return; e.currentTarget.disabled = true; await addPlan(pl); });
+  on("#planHide", () => { const pl = pendingPlan(); if (pl) { S.ui["planHidden-" + pl.id] = true; render(); } });
   const newContent = () => postForm(null, { clientId: OWN, status: r === "marketing-review" ? "In progress" : "Idea", platforms: [...MAIN_PLATFORMS] });
   on("#newContent", newContent); on("#newContent2", newContent);
   on("#newIdea", () => postForm(null, { clientId: OWN, status: "Idea" }));
